@@ -1356,6 +1356,8 @@
     var s = S.subject;
     var left = homeBtn() + '<i class="vr"></i><span class="crumb">' + esc(s.name) + " 정리본</span>";
     var right =
+      (S.sections.length
+        ? '<button type="button" class="btn" data-a="quizall">과목 전체 풀기</button>' : "") +
       '<button type="button" class="btn" data-a="add">' + I.plus + " 자료 추가</button>";
 
     if (!S.sections.length) {
@@ -1424,14 +1426,21 @@
   /* ============================== 모드 고르기 ============================== */
   function viewMode() {
     var sec = S.sections[S.secIndex];
+    var whole = S.setup.scope === "subject";
     var left = homeBtn() + '<i class="vr"></i><span class="crumb">' + esc(S.subject.name) +
-      " › " + esc(sec.title) + "</span>";
+      " › " + esc(whole ? "전체" : sec.title) + "</span>";
     var right = '<button type="button" class="btn" data-a="subject">정리본으로</button>';
     var m = S.setup.mode;
     function li(t) { return "<li>" + I.tick + " " + esc(t) + "</li>"; }
+    var made = S.sections.reduce(function (n, x) { return n + (x.qCount || 0); }, 0);
     return bar(left, right) + '<div class="page"><div class="mdin">' +
       '<h1 class="mdh">어떻게 풀까</h1>' +
-      '<p class="mdsub">' + esc(sec.title) + " · 문제는 정리본 내용으로 그때그때 만든다.</p>" +
+      '<p class="mdsub">' +
+      (whole
+        ? esc(S.subject.name) + " 전체 " + S.sections.length + "단원에서 골고루 낸다." +
+          (made ? " 이미 만들어둔 " + made + "문제를 먼저 쓰고, 없는 단원만 새로 만든다."
+                : " 단원마다 문제를 만들어야 해서 처음엔 시간이 걸린다.")
+        : esc(sec.title) + " · 문제는 정리본 내용으로 그때그때 만든다.") + "</p>" +
       '<div class="mdg">' +
       '<button type="button" class="mdc' + (m === "practice" ? " on" : "") +
       '" data-a="mode" data-m="practice"><span class="tag">기본값</span><h3>연습 모드</h3>' +
@@ -1446,20 +1455,29 @@
       li("제출하면 성적표와 틀린 문제 풀이") + "</ul>" +
       '<p class="mdwhen">시험이 <b>이틀 남았을 때</b></p></button>' +
       "</div>" +
-      '<div class="mdset"><div class="mdrow"><span>문제 수</span><div class="chips">' +
-      [6, 12, 17].map(function (n) {
+      '<div class="mdset">' +
+      '<div class="mdrow"><span>범위</span><div class="chips">' +
+      '<button type="button" class="chip' + (whole ? "" : " on") +
+      '" data-a="scopeq" data-s="section">' + esc(sec.title) + "</button>" +
+      '<button type="button" class="chip' + (whole ? " on" : "") +
+      '" data-a="scopeq" data-s="subject">' + esc(S.subject.name) + " 전체 · " +
+      S.sections.length + "단원</button></div></div>" +
+      '<div class="mdrow"><span>문제 수</span><div class="chips">' +
+      (whole ? [10, 20, 40] : [6, 12, 17]).map(function (n) {
         return '<button type="button" class="chip' + (S.setup.count === n ? " on" : "") +
           '" data-a="count" data-n="' + n + '">' + n + "개</button>";
       }).join("") + "</div></div></div>" +
       '<div class="mdgo"><button type="button" class="btn solid lg" data-a="start">' +
       (m === "practice" ? "연습 모드로 시작" : "실전 모드로 시작") + "</button>" +
-      '<span class="hint">' + S.setup.count + "문제 · 만드는 데 30초쯤 걸린다</span></div>" +
+      '<span class="hint">' + S.setup.count + "문제 · " +
+      (whole ? "단원마다 문제를 만들어야 하면 몇 분 걸린다" : "만드는 데 30초쯤 걸린다") +
+      "</span></div>" +
       "</div></div>";
   }
 
   /* ============================== 문제 렌더 ============================== */
   function stemBlock(q, i) {
-    return '<div class="qmeta"><span class="qtopic">' + esc(S.ses.secTitle) + "</span>" +
+    return '<div class="qmeta"><span class="qtopic">' + esc(qSecTitle(q)) + "</span>" +
       '<span class="qsrc">' + (q.type === "mc" ? "객관식" : q.type === "ox" ? "OX" : "단답") + "</span></div>" +
       '<div class="qq"><span class="qno">' + (i + 1) + '.</span><span class="qstem">' +
       esc(q.stem) + ' <span class="qpt">[' + (q.points || 3) + "점]</span></span></div>";
@@ -1611,17 +1629,25 @@
     var wrong = [];
     s.qs.forEach(function (q, i) { if (!(s.ans[i] && s.ans[i].correct)) wrong.push({ q: q, i: i }); });
 
-    var byType = {};
-    s.qs.forEach(function (q, i) {
-      var t = q.type;
-      byType[t] = byType[t] || { n: 0, ok: 0 };
-      byType[t].n++; if (s.ans[i] && s.ans[i].correct) byType[t].ok++;
-    });
+    // 과목 전체를 푼 회차면 단원별로, 한 단원만 푼 회차면 유형별로 쪼갠다
+    var mixed = s.scope === "subject";
     var typeName = { mc: "객관식", ox: "OX", short: "단답" };
-    var typeRows = Object.keys(byType).map(function (t) {
-      var r = byType[t], p = pct(r.ok, r.n);
+    var groups = {}, order = [];
+    s.qs.forEach(function (q, i) {
+      var key = mixed ? qSecTitle(q) : (typeName[q.type] || q.type);
+      if (!groups[key]) { groups[key] = { n: 0, ok: 0 }; order.push(key); }
+      groups[key].n++;
+      if (s.ans[i] && s.ans[i].correct) groups[key].ok++;
+    });
+    if (mixed) {
+      order.sort(function (a, b) {
+        return pct(groups[a].ok, groups[a].n) - pct(groups[b].ok, groups[b].n);
+      });
+    }
+    var typeRows = order.map(function (key) {
+      var r = groups[key], p = pct(r.ok, r.n);
       return '<div class="wrow' + (p < 60 ? " bad" : "") + '" style="grid-template-columns:1fr 78px">' +
-        '<div><div class="wnm"><b>' + (typeName[t] || t) + "</b><em>" + r.n + "문제</em></div>" +
+        '<div><div class="wnm"><b>' + esc(key) + "</b><em>" + r.n + "문제</em></div>" +
         '<div class="wtr"><i style="width:' + p + '%"></i></div></div>' +
         '<span class="wnum">' + p + "%</span></div>";
     }).join("");
@@ -1645,7 +1671,7 @@
         : "전부 맞았다. 이 단원은 넘어가도 되겠다.") +
       "</p>" +
       '<div class="sheet">' + cells + "</div></div>" +
-      '<div class="rsside"><p class="lab">이번 회차</p>' +
+      '<div class="rsside"><p class="lab">이번 회차 · ' + (mixed ? "단원별" : "유형별") + "</p>" +
       typeRows +
       '<div class="rsacts"><button type="button" class="btn solid" data-a="again">한 번 더</button>' +
       '<button type="button" class="btn" data-a="subject">정리본 다시 읽기</button></div>' +
@@ -2254,14 +2280,9 @@
     return false;
   }
 
-  function runQuestions(sec, count, then) {
-    if (!needSample()) return;
-    var ctl = new AbortController();
+  function askQuestions(sec, count, ctl) {
     var seen = "";
-    S.busy = { title: "문제를 만들고 있다", desc: sec.title + " · " + count + "문제",
-               note: "30초쯤", ctl: ctl, stream: "" };
-    render();
-    S.sample.json(questionPrompt(S.subject.name, sec, count), {
+    return S.sample.json(questionPrompt(S.subject.name, sec, count), {
       signal: ctl.signal,
       cache: false,
       onText: function (u) { seen = u.text; if (S.busy) { S.busy.stream = u.text; render(); } }
@@ -2276,18 +2297,111 @@
       if (!qs.length) {
         throw { code: "no_questions", message: "답은 왔는데 쓸 수 있는 문제가 없다", text: seen };
       }
-      S.busy = null;
-      then(qs, dropped);
-    }).catch(function (e) {
+      return { qs: qs, dropped: dropped };
+    }, function (e) {
       if (e && !e.text && seen) { try { e.text = seen; } catch (x) {} }
-      failBusy(e, "문제를 만들지 못했다");
+      throw e;
     });
   }
 
+  function runQuestions(sec, count, then) {
+    if (!needSample()) return;
+    var ctl = new AbortController();
+    setBusy("문제를 만들고 있다", sec.title + " · " + count + "문제", "30초쯤", ctl);
+    askQuestions(sec, count, ctl).then(function (r) {
+      S.busy = null;
+      then(r.qs, r.dropped);
+    }).catch(function (e) { failBusy(e, "문제를 만들지 못했다"); });
+  }
+
+  /* ---------- 과목 전체 ---------- */
+  function shuffle(a) {
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+  function cloneQ(q, sec) {
+    var o = {};
+    for (var k in q) if (Object.prototype.hasOwnProperty.call(q, k)) o[k] = q[k];
+    o._secId = sec.id; o._secTitle = sec.title;
+    return o;
+  }
+  // 단원을 돌아가며 한 문제씩 뽑는다 — 한 단원에 몰리지 않게
+  function mixPools(pools, count) {
+    pools.forEach(function (p) { shuffle(p.qs); });
+    var out = [], idx = 0, more = true;
+    while (out.length < count && more) {
+      more = false;
+      for (var i = 0; i < pools.length && out.length < count; i++) {
+        if (idx < pools[i].qs.length) {
+          out.push(cloneQ(pools[i].qs[idx], pools[i].sec));
+          more = true;
+        }
+      }
+      idx++;
+    }
+    return out;
+  }
+
+  function runSubjectQuiz(count, mode) {
+    if (!needSample()) return;
+    var secs = S.sections.slice();
+    if (!secs.length) return;
+    var ctl = new AbortController();
+    var pools = [], need = [], totalDropped = 0;
+
+    setBusy("문제를 모으는 중", "이미 만들어둔 단원부터 불러온다.", "", ctl);
+
+    var chain = Promise.resolve();
+    secs.forEach(function (sec) {
+      chain = chain.then(function () {
+        return S.store.getQset(S.subject.id, sec.id).then(function (set) {
+          var arr = (set && set.questions) || [];
+          if (arr.length) pools.push({ sec: sec, qs: arr.slice() });
+          else need.push(sec);
+        }, function () { need.push(sec); });
+      });
+    });
+
+    chain.then(function () {
+      var perSec = Math.max(4, Math.ceil(count / Math.max(1, secs.length)) + 2);
+      var i = 0;
+      function gen() {
+        if (i >= need.length) return Promise.resolve();
+        var sec = need[i];
+        setBusy("문제를 만들고 있다",
+          "아직 문제가 없는 단원 " + (i + 1) + " / " + need.length + " · " + sec.title,
+          "단원마다 30초쯤", ctl);
+        return askQuestions(sec, perSec, ctl).then(function (r) {
+          totalDropped += r.dropped;
+          pools.push({ sec: sec, qs: r.qs });
+          sec.qCount = r.qs.length;
+          S.store.putQset(S.subject.id, sec.id,
+            { questions: r.qs, generatedAt: Date.now() }).catch(function () {});
+          S.store.putSection(S.subject.id, sec).catch(function () {});
+          i++; return gen();
+        }, function (e) {
+          if (e && e.code === "cancelled") throw e;
+          i++; return gen();   // 한 단원이 실패해도 나머지는 계속
+        });
+      }
+      return gen();
+    }).then(function () {
+      if (!pools.length) throw { code: "no_questions", message: "어느 단원에서도 문제를 만들지 못했다" };
+      var picked = mixPools(pools, count);
+      if (!picked.length) throw { code: "no_questions", message: "뽑을 문제가 없다" };
+      S.busy = null;
+      startSession({ id: "__all__", title: S.subject.name + " 전체" },
+                   picked, mode, totalDropped, "subject");
+    }).catch(function (e) { failBusy(e, "문제를 준비하지 못했다"); });
+  }
+
   /* ============================== 세션 ============================== */
-  function startSession(sec, qs, mode, dropped) {
+  function startSession(sec, qs, mode, dropped, scope) {
     S.ses = {
-      mode: mode, secId: sec.id, secTitle: sec.title,
+      mode: mode, scope: scope || "section", secId: sec.id, secTitle: sec.title,
       subjectId: S.subject.id, subjectName: S.subject.name,
       qs: qs, ans: qs.map(function () { return { given: null, graded: false, correct: false }; }),
       i: 0, startedAt: Date.now(), endedAt: 0, dropped: dropped || 0
@@ -2318,10 +2432,12 @@
     return (q.acceptable || []).some(function (x) { return norm(x) === g; });
   }
 
+  function qSecId(q) { return (q && q._secId) || S.ses.secId; }
+  function qSecTitle(q) { return (q && q._secTitle) || S.ses.secTitle; }
   function pushAttempt(q, correct) {
     S.progress.push({
       subjectId: S.ses.subjectId, subjectName: S.ses.subjectName,
-      secId: S.ses.secId, secTitle: S.ses.secTitle,
+      secId: qSecId(q), secTitle: qSecTitle(q),
       type: q.type, correct: !!correct, at: Date.now()
     });
   }
@@ -2592,7 +2708,21 @@
 
     if (a === "sec") { S.secIndex = +el.getAttribute("data-i"); render(); return; }
 
-    if (a === "quiz") { S.view = "mode"; render(); return; }
+    if (a === "quiz") {
+      S.setup.scope = "section";
+      if (S.setup.count > 17) S.setup.count = 12;
+      S.view = "mode"; render(); return;
+    }
+    if (a === "quizall") {
+      S.setup.scope = "subject";
+      if (S.setup.count < 10) S.setup.count = 20;
+      S.view = "mode"; render(); return;
+    }
+    if (a === "scopeq") {
+      S.setup.scope = el.getAttribute("data-s");
+      S.setup.count = S.setup.scope === "subject" ? 20 : 12;
+      render(); return;
+    }
     if (a === "drill") {
       var sid = el.getAttribute("data-sid"), secId = el.getAttribute("data-sec");
       var sub4 = S.subjects.filter(function (x) { return x.id === sid; })[0];
@@ -2609,6 +2739,7 @@
     if (a === "mode") { S.setup.mode = el.getAttribute("data-m"); render(); return; }
     if (a === "count") { S.setup.count = +el.getAttribute("data-n"); render(); return; }
     if (a === "start") {
+      if (S.setup.scope === "subject") { runSubjectQuiz(S.setup.count, S.setup.mode); return; }
       var sec2 = S.sections[S.secIndex];
       runQuestions(sec2, S.setup.count, function (qs, dropped) {
         sec2.qCount = qs.length;
@@ -2620,8 +2751,9 @@
       return;
     }
     if (a === "again") {
-      var sec3 = S.sections[S.secIndex];
       var mode3 = S.ses ? S.ses.mode : S.setup.mode;
+      if (S.ses && S.ses.scope === "subject") { runSubjectQuiz(S.setup.count, mode3); return; }
+      var sec3 = S.sections[S.secIndex];
       runQuestions(sec3, S.setup.count, function (qs, dropped) {
         startSession(sec3, qs, mode3, dropped);
       });
@@ -2630,16 +2762,23 @@
     if (a === "dropq") {
       if (!s) return;
       var di = s.i;
+      var dq = s.qs[di];
+      var dsec = qSecId(dq);
       if (s.ans[di] && s.ans[di].graded) {
         for (var dk = S.progress.length - 1; dk >= 0; dk--) {
-          if (S.progress[dk].secId === s.secId) { S.progress.splice(dk, 1); break; }
+          if (S.progress[dk].secId === dsec) { S.progress.splice(dk, 1); break; }
         }
         saveProgress();
       }
       s.qs.splice(di, 1); s.ans.splice(di, 1);
       s.dropped = (s.dropped || 0) + 1;
-      S.store.putQset(S.subject.id, s.secId,
-        { questions: s.qs, generatedAt: Date.now() }).catch(function () {});
+      // 저장된 문제집에서도 같은 지문을 지운다
+      S.store.getQset(S.subject.id, dsec).then(function (set) {
+        if (!set || !set.questions) return;
+        var left = set.questions.filter(function (x) { return x.stem !== dq.stem; });
+        return S.store.putQset(S.subject.id, dsec,
+          { questions: left, generatedAt: Date.now() });
+      }).catch(function () {});
       if (!s.qs.length) {
         S.ses = null; S.view = "subject";
         alertBox("문제가 다 빠졌다", "이 단원 문제를 전부 뺐다. ‘풀어보기’를 다시 누르면 새로 만든다.");
@@ -2668,9 +2807,9 @@
     if (a === "markok") {
       var q2 = s.qs[s.i];
       s.ans[s.i].correct = true;
-      // 마지막 기록을 정정한다
+      var mk = qSecId(q2);
       for (var k = S.progress.length - 1; k >= 0; k--) {
-        if (S.progress[k].secId === s.secId) { S.progress[k].correct = true; break; }
+        if (S.progress[k].secId === mk) { S.progress[k].correct = true; break; }
       }
       saveProgress();
       render(); return;
