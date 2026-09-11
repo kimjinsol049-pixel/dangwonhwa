@@ -746,6 +746,151 @@
   apiSample.maxChars = 7000;
   apiSample.label = "내 API 키";
 
+  /* ==================== Gemini — 무료 티어 키 ====================
+     구글 AI Studio에서 카드 없이 키를 발급받을 수 있고, Flash 계열은
+     하루 한도 안에서 무료다. 모델 이름이 자주 바뀌므로 하드코딩하지 않고
+     키를 넣는 순간 API에 직접 목록을 물어본다. */
+  var GEM_BASE = "https://generativelanguage.googleapis.com/v1beta";
+  function gemKey() {
+    try { return localStorage.getItem("dangwonhwa.geminikey") || ""; } catch (e) { return ""; }
+  }
+  function setGemKey(k) {
+    try { k ? localStorage.setItem("dangwonhwa.geminikey", k)
+            : localStorage.removeItem("dangwonhwa.geminikey"); } catch (e) {}
+  }
+  function gemModel() {
+    try { return localStorage.getItem("dangwonhwa.geminimodel") || ""; } catch (e) { return ""; }
+  }
+  function setGemModel(m) { try { localStorage.setItem("dangwonhwa.geminimodel", m); } catch (e) {} }
+
+  function gemErr(status, body) {
+    var msg = "";
+    try { var j = JSON.parse(body); msg = (j.error && j.error.message) || ""; }
+    catch (e) { msg = String(body).slice(0, 200); }
+    if (status === 400 && /API_KEY_INVALID|API key not valid/i.test(String(body)))
+      return { code: "bad_gemkey", message: msg };
+    if (status === 403) return { code: "bad_gemkey", message: msg || "권한이 없다" };
+    if (status === 429) return { code: "gem_quota", message: msg || "무료 한도 초과" };
+    if (status === 400) return { code: "invalid_request", message: msg };
+    if (status >= 500) return { code: "upstream_error", message: "서버 오류 " + status + " " + msg };
+    return { code: "upstream_error", message: "HTTP " + status + " " + msg };
+  }
+
+  function gemListModels(key) {
+    return fetch(GEM_BASE + "/models?key=" + encodeURIComponent(key)).then(function (r) {
+      return r.text().then(function (t) {
+        if (!r.ok) throw gemErr(r.status, t);
+        var j = JSON.parse(t);
+        return (j.models || []).filter(function (m) {
+          return (m.supportedGenerationMethods || []).indexOf("generateContent") >= 0;
+        }).map(function (m) {
+          return { id: String(m.name || "").replace(/^models\//, ""),
+                   label: m.displayName || m.name };
+        });
+      });
+    }, function (e) {
+      if (e && e.code) throw e;
+      throw { code: "no_network",
+              message: "generativelanguage.googleapis.com에 닿지 못했다: " + ((e && e.message) || e) };
+    });
+  }
+  function gemScore(id) {
+    var s = 0;
+    if (/flash/i.test(id)) s += 100;
+    if (/lite/i.test(id)) s -= 30;
+    if (/preview|exp\b|thinking/i.test(id)) s -= 25;
+    if (/image|tts|audio|embed|vision-only/i.test(id)) s -= 200;
+    var m = id.match(/(\d+(?:\.\d+)?)/);
+    if (m) s += parseFloat(m[1]) * 3;
+    if (/latest/i.test(id)) s += 4;
+    return s;
+  }
+  function gemCandidates(all) {
+    var ok = all.filter(function (m) { return !/image|tts|audio|embed/i.test(m.id); });
+    return (ok.length ? ok : all).slice().sort(function (a, b) {
+      return gemScore(b.id) - gemScore(a.id);
+    });
+  }
+  function gemPart(b) {
+    return new Promise(function (res, rej) {
+      var r = new FileReader();
+      r.onload = function () {
+        var s = String(r.result), i = s.indexOf(",");
+        res({ inline_data: { mime_type: b.type || "image/jpeg", data: s.slice(i + 1) } });
+      };
+      r.onerror = function () { rej({ code: "image_rejected", message: "파일을 읽지 못했다" }); };
+      r.readAsDataURL(b);
+    });
+  }
+
+  function geminiSample(input, opts) {
+    opts = opts || {};
+    var key = gemKey();
+    if (!key) return Promise.reject({ code: "no_sample", message: "Gemini 키가 없다" });
+    var model = gemModel();
+    if (!model) return Promise.reject({ code: "no_sample", message: "쓸 모델이 정해지지 않았다" });
+    var imgs = opts.images ? Array.prototype.slice.call(opts.images) : [];
+    return Promise.all(imgs.map(gemPart)).then(function (parts) {
+      var text = typeof input === "string" ? input
+        : input.map(function (m) { return m.content; }).join("\n\n");
+      var gc = { temperature: 0.4, maxOutputTokens: 8192 };
+      if (opts.wantJson) gc.responseMimeType = "application/json";
+      return fetch(GEM_BASE + "/models/" + encodeURIComponent(model) +
+                   ":generateContent?key=" + encodeURIComponent(key), {
+        method: "POST", signal: opts.signal,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ role: "user", parts: parts.concat([{ text: text }]) }],
+          generationConfig: gc
+        })
+      });
+    }).then(function (r) {
+      return r.text().then(function (t) {
+        if (!r.ok) throw gemErr(r.status, t);
+        var j = JSON.parse(t);
+        var c = (j.candidates || [])[0];
+        if (!c) {
+          var bm = j.promptFeedback && j.promptFeedback.blockReason;
+          throw { code: bm ? "refused" : "empty_completion",
+                  message: bm || "후보 응답이 없다", text: t.slice(0, 800) };
+        }
+        var out = ((c.content && c.content.parts) || [])
+          .map(function (p) { return p.text || ""; }).join("");
+        if (!out.trim())
+          throw { code: "empty_completion",
+                  message: "답이 비었다 (finishReason: " + (c.finishReason || "?") + ")" };
+        return { text: out, truncated: c.finishReason === "MAX_TOKENS", modelTierApplied: "default" };
+      });
+    }, function (e) {
+      if (e && (e.name === "AbortError" || e.code === "cancelled"))
+        throw { code: "cancelled", message: "중단됨" };
+      if (e && e.code) throw e;
+      throw { code: "no_network",
+              message: "generativelanguage.googleapis.com에 닿지 못했다: " + ((e && e.message) || e) };
+    });
+  }
+  geminiSample.json = function (input, opts) {
+    var o = {};
+    for (var k in (opts || {})) {
+      if (Object.prototype.hasOwnProperty.call(opts, k)) o[k] = opts[k];
+    }
+    o.wantJson = true;
+    return geminiSample(input, o).then(function (r) {
+      var v = looseJson(r.text);
+      if (v == null) throw { code: "invalid_json", message: "JSON을 찾지 못했다", text: r.text };
+      return v;
+    });
+  };
+  geminiSample.limits = function () {
+    return Promise.resolve({
+      maxPromptBytes: 65536,
+      images: { maxCount: 8, maxInputBytes: 5 * 1024 * 1024,
+                mediaTypes: ["image/jpeg", "image/png", "image/webp", "image/heic"] }
+    });
+  };
+  geminiSample.maxChars = 7000;
+  geminiSample.label = "Gemini 무료";
+
   /* ============ 무료 · 브라우저 안에서 모델을 직접 돌리기 ============
      키도 서버도 없다. 모델 파일을 한 번 내려받아 브라우저에 캐시하고
      WebGPU로 돌린다. 자료가 기기 밖으로 나가지 않는다.
@@ -867,6 +1012,7 @@
       if (!S.sample && S.standalone) {
         var mode = aiMode();
         if (mode === "local") S.sample = webllmSample;
+        else if (mode === "gemini" && gemKey() && gemModel()) S.sample = geminiSample;
         else if (getKey()) S.sample = apiSample;
       }
       if (S.sample && S.sample.limits) {
@@ -1495,27 +1641,62 @@
     }
     if (m.type === "apikey") {
       var has = !!getKey();
-      var mode = m.pick || aiMode() || "local";
+      var mode = m.pick || aiMode() || "gemini";
       var gpu = !!navigator.gpu;
       var mi = localModelInfo();
 
       var pickRow =
-        '<div class="mdg" style="grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:22px">' +
+        '<div class="mdg" style="grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:22px">' +
+        '<button type="button" class="mdc' + (mode === "gemini" ? " on" : "") +
+        '" data-a="aipick" data-m="gemini" style="padding:15px">' +
+        '<span class="tag">무료 · 권장</span><h3 style="font-size:16px">Gemini</h3>' +
+        "<p style='margin-bottom:0;font-size:12.5px'>구글에서 카드 없이 키를 받는다. " +
+        "하루 한도 안에서 무료고, 사진도 읽는다.</p></button>" +
         '<button type="button" class="mdc' + (mode === "local" ? " on" : "") +
-        '" data-a="aipick" data-m="local" style="padding:16px"' + (gpu ? "" : " disabled") + ">" +
-        '<span class="tag">무료 · 키 없음</span><h3 style="font-size:17px">이 기기에서 직접</h3>' +
-        "<p style='margin-bottom:0'>" +
-        (gpu ? "모델을 한 번 내려받아 브라우저 안에서 돌린다. 자료가 기기 밖으로 나가지 않는다."
-             : "이 브라우저는 WebGPU를 지원하지 않아 쓸 수 없다. 최신 크롬이나 엣지에서 열어줘.") +
+        '" data-a="aipick" data-m="local" style="padding:15px"' + (gpu ? "" : " disabled") + ">" +
+        '<span class="tag">무료 · 키 없음</span><h3 style="font-size:16px">이 기기에서</h3>' +
+        "<p style='margin-bottom:0;font-size:12.5px'>" +
+        (gpu ? "모델을 내려받아 브라우저 안에서 돌린다. 자료가 기기 밖으로 안 나간다."
+             : "이 브라우저는 WebGPU를 지원하지 않아 쓸 수 없다.") +
         "</p></button>" +
         '<button type="button" class="mdc' + (mode === "key" ? " on" : "") +
-        '" data-a="aipick" data-m="key" style="padding:16px">' +
-        '<span class="tag">유료 · 정확함</span><h3 style="font-size:17px">Anthropic API 키</h3>' +
-        "<p style='margin-bottom:0'>Claude를 그대로 쓴다. 정리 품질이 가장 좋고 사진도 읽는다. " +
+        '" data-a="aipick" data-m="key" style="padding:15px">' +
+        '<span class="tag">유료 · 최상</span><h3 style="font-size:16px">Claude</h3>' +
+        "<p style='margin-bottom:0;font-size:12.5px'>Anthropic API 키. 정리 품질이 가장 좋다. " +
         "사용료는 키 주인 부담.</p></button></div>";
 
       var body;
-      if (mode === "local") {
+      if (mode === "gemini") {
+        var gk = gemKey();
+        var chosen = gemModel();
+        var models = S.gemModels || [];
+        body =
+          '<div class="field"><label for="gk">Gemini API 키</label>' +
+          '<input type="password" id="gk" data-focus placeholder="AIza..." autocomplete="off" spellcheck="false"' +
+          (gk ? ' value=""' : "") + "></div>" +
+          (chosen
+            ? "<p style='font-size:12.5px;color:var(--ink2);margin:0 0 12px'>지금 쓰는 모델 · <b>" +
+              esc(chosen) + "</b></p>"
+            : "") +
+          (models.length
+            ? "<div class='chips' style='margin-bottom:14px'>" +
+              models.slice(0, 6).map(function (x) {
+                return '<button type="button" class="chip' + (x.id === chosen ? " on" : "") +
+                  '" data-a="gemmodel" data-id="' + esc(x.id) + '">' + esc(x.id) + "</button>";
+              }).join("") + "</div>"
+            : "") +
+          '<div class="note calm"><b>키는 aistudio.google.com 에서 카드 없이 만든다.</b> ' +
+          "Flash 계열은 하루 한도 안에서 무료다(대략 하루 1,500회 안팎, 구글이 수시로 바꾼다). " +
+          "한도를 넘기면 잠시 뒤 다시 풀린다.<br><br>" +
+          "<b>알아둘 것.</b> 무료 티어에 보낸 내용은 구글이 제품 개선에 쓸 수 있다. " +
+          "민감한 자료라면 ‘이 기기에서’ 쪽을 써라. 키는 이 브라우저에만 저장되고 " +
+          "구글 외에는 어디로도 가지 않는다.</div>" +
+          '<div class="mrowb">' +
+          (gk ? '<button type="button" class="btn danger" data-a="cleargem">키 지우기</button>' : "") +
+          '<button type="button" class="btn" data-a="closemodal">취소</button>' +
+          '<button type="button" class="btn solid" data-a="savegem">' +
+          (gk ? "키 바꾸기" : "연결") + "</button></div>";
+      } else if (mode === "local") {
         body =
           '<div class="mdset" style="border-top:0;padding-top:0"><div class="mdrow" style="border-bottom:0">' +
           "<span>모델</span><div class='chips'>" +
@@ -1811,6 +1992,7 @@
       "입력 한도: " + textCap().toLocaleString() + "자",
       "WebGPU: " + (navigator.gpu ? "있음" : "없음"),
       "모델 받아둠: " + (llmModelLoaded || "없음"),
+      "Gemini 키/모델: " + (gemKey() ? "있음 / " + (gemModel() || "미정") : "없음"),
       "API 키 저장됨: " + (getKey() ? "예" : "아니오"),
       "저장소: " + (S.dbOK ? "서버 (공유됨)" : "이 브라우저에만"),
       "이미지 전송: " + (S.imgLimits ? "가능 (한 번에 " + S.imgLimits.maxCount + "장)" : "불가"),
@@ -1870,6 +2052,8 @@
     image_rejected: "사진이 거절됐다. 장수가 너무 많거나, 용량이 크거나, 지원하지 않는 형식이다.",
     upstream_error: "연결이 끊기거나 일시적인 오류가 났다. 다시 눌러줘.",
     no_questions: "Claude가 답은 했는데 문제 형식이 맞지 않았다. 이 단원 내용이 짧으면 잘 생긴다 — 문제 수를 줄이거나 자료를 더 넣어줘.",
+    bad_gemkey: "Gemini 키가 거부됐다. aistudio.google.com 에서 만든 키가 맞는지, 그대로 붙여넣었는지 확인해줘.",
+    gem_quota: "Gemini 무료 하루 한도를 넘겼다. 잠시 뒤 다시 되고, 자정(태평양 시간)에 초기화된다. 급하면 ‘이 기기에서’ 쪽으로 바꿔 쓰면 된다.",
     no_webgpu: "이 브라우저에서 WebGPU를 쓸 수 없어 무료 모델을 돌릴 수 없다. 최신 크롬이나 엣지(데스크톱)에서 열거나, API 키 쪽을 써줘.",
     local_error: "브라우저 안에서 모델을 돌리다 막혔다. 그래픽 메모리가 모자랄 수 있으니 더 작은 모델로 바꿔보고, 안 되면 API 키 쪽을 써줘.",
     bad_key: "API 키가 거부됐다. 키가 맞는지, 앞에 sk-ant- 로 시작하는지, 잔액이 남았는지 확인해줘.",
@@ -2145,6 +2329,7 @@
     if (e.target && e.target.id === "sname") { e.preventDefault(); act("createsubject", e.target); }
     if (e.target && e.target.id === "nm") { e.preventDefault(); act("savename", e.target); }
     if (e.target && e.target.id === "ak") { e.preventDefault(); act("savekey", e.target); }
+    if (e.target && e.target.id === "gk") { e.preventDefault(); act("savegem", e.target); }
     if (e.target && e.target.id === "short" && S.ses && !S.ses.ans[S.ses.i].graded) {
       e.preventDefault(); act("grade", e.target);
     }
@@ -2192,6 +2377,42 @@
     if (a === "localmodel") {
       setLocalModel(el.getAttribute("data-id"));
       S.modal = { type: "apikey", pick: "local" }; render(); return;
+    }
+    if (a === "gemmodel") {
+      setGemModel(el.getAttribute("data-id"));
+      S.modal = { type: "apikey", pick: "gemini" }; render(); return;
+    }
+    if (a === "cleargem") {
+      setGemKey("");
+      if (S.sample === geminiSample) { S.sample = null; S.imgLimits = null; setAiMode(""); }
+      S.gemModels = null; S.modal = null; render(); return;
+    }
+    if (a === "savegem") {
+      var gkEl = document.getElementById("gk");
+      var gkv = gkEl ? gkEl.value.trim() : "";
+      if (!gkv) { if (gkEl) gkEl.focus(); return; }
+      S.modal = null;
+      S.busy = { title: "키를 확인하는 중", desc: "쓸 수 있는 모델을 구글에 물어본다",
+                 note: "몇 초", ctl: new AbortController(), stream: "" };
+      render();
+      gemListModels(gkv).then(function (all) {
+        var cands = gemCandidates(all);
+        if (!cands.length) throw { code: "bad_gemkey", message: "이 키로 쓸 수 있는 모델이 없다" };
+        setGemKey(gkv); setAiMode("gemini");
+        S.gemModels = cands;
+        var keep = gemModel();
+        var ok = cands.some(function (m) { return m.id === keep; });
+        if (!ok) setGemModel(cands[0].id);
+        S.sample = geminiSample;
+        return geminiSample.limits();
+      }).then(function (l) {
+        S.imgLimits = (l && l.images) || null;
+        S.busy = null;
+        alertBox("연결됐다",
+          "Gemini 무료 티어에 붙었다. 모델은 " + gemModel() + " 을 쓴다. " +
+          "쓸 수 있는 모델이 여러 개면 AI 연결 화면에서 바꿀 수 있다.");
+      }).catch(function (e) { failBusy(e, "Gemini에 연결하지 못했다"); });
+      return;
     }
     if (a === "usefree") {
       setAiMode("local");
