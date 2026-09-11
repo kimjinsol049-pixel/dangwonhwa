@@ -766,6 +766,104 @@
   apiSample.maxChars = 7000;
   apiSample.label = "내 API 키";
 
+  /* ============ 서버가 대신 불러주는 경우 (Vercel 배포판) ============
+     /api/ai 가 살아 있고 키가 설정돼 있으면 방문자는 아무것도 안 넣어도 된다.
+     GitHub Pages처럼 함수가 없는 곳에서는 조회가 실패하고 이 선택지는 숨는다.
+     Pages에서도 쓰고 싶으면 서버 주소를 직접 저장해두면 된다. */
+  function serverBase() {
+    try { return localStorage.getItem("dangwonhwa.server") || ""; } catch (e) { return ""; }
+  }
+  function setServerBase(u) {
+    try {
+      u ? localStorage.setItem("dangwonhwa.server", u.replace(/\/+$/, ""))
+        : localStorage.removeItem("dangwonhwa.server");
+    } catch (e) {}
+  }
+  function passcode() {
+    try { return localStorage.getItem("dangwonhwa.passcode") || ""; } catch (e) { return ""; }
+  }
+  function setPasscode(p) {
+    try { p ? localStorage.setItem("dangwonhwa.passcode", p)
+            : localStorage.removeItem("dangwonhwa.passcode"); } catch (e) {}
+  }
+  function aiEndpoint() { return serverBase() + "/api/ai"; }
+
+  function probeServer() {
+    return fetch(aiEndpoint(), { method: "GET" }).then(function (r) {
+      if (!r.ok) return null;
+      return r.json().then(function (j) {
+        return (j && j.ok) ? j : null;
+      });
+    }).catch(function () { return null; });
+  }
+
+  function serverSample(input, opts) {
+    opts = opts || {};
+    var imgs = opts.images ? Array.prototype.slice.call(opts.images) : [];
+    return Promise.all(imgs.map(function (b) {
+      return new Promise(function (res, rej) {
+        var r = new FileReader();
+        r.onload = function () {
+          var s = String(r.result), i = s.indexOf(",");
+          res({ mime: b.type || "image/jpeg", data: s.slice(i + 1) });
+        };
+        r.onerror = function () { rej({ code: "image_rejected", message: "파일을 읽지 못했다" }); };
+        r.readAsDataURL(b);
+      });
+    })).then(function (parts) {
+      var text = typeof input === "string" ? input
+        : input.map(function (m) { return m.content; }).join("\n\n");
+      var h = { "content-type": "application/json" };
+      if (passcode()) h["x-passcode"] = passcode();
+      return fetch(aiEndpoint(), {
+        method: "POST", signal: opts.signal, headers: h,
+        body: JSON.stringify({ prompt: text, images: parts, wantJson: !!opts.wantJson })
+      });
+    }).then(function (r) {
+      return r.text().then(function (t) {
+        var j = null;
+        try { j = JSON.parse(t); } catch (e) {}
+        if (!j) throw { code: "upstream_error", message: "서버 응답을 읽지 못했다", text: t.slice(0, 400) };
+        if (j.error) {
+          var c = j.error.code;
+          var map = { quota: "gem_quota", passcode: "need_passcode", server_key: "server_key",
+                      not_configured: "server_unset", too_large: "prompt_too_large",
+                      refused: "refused", empty: "empty_completion" };
+          throw { code: map[c] || "upstream_error", message: j.error.message || c };
+        }
+        if (!j.text || !String(j.text).trim())
+          throw { code: "empty_completion", message: "답이 비었다" };
+        return { text: j.text, truncated: !!j.truncated, modelTierApplied: "default" };
+      });
+    }, function (e) {
+      if (e && (e.name === "AbortError" || e.code === "cancelled"))
+        throw { code: "cancelled", message: "중단됨" };
+      if (e && e.code) throw e;
+      throw { code: "no_network", message: "서버에 닿지 못했다: " + ((e && e.message) || e) };
+    });
+  }
+  serverSample.json = function (input, opts) {
+    var o = {};
+    for (var k in (opts || {})) {
+      if (Object.prototype.hasOwnProperty.call(opts, k)) o[k] = opts[k];
+    }
+    o.wantJson = true;
+    return serverSample(input, o).then(function (r) {
+      var v = looseJson(r.text);
+      if (v == null) throw { code: "invalid_json", message: "JSON을 찾지 못했다", text: r.text };
+      return v;
+    });
+  };
+  serverSample.limits = function () {
+    return Promise.resolve({
+      maxPromptBytes: 65536,
+      images: { maxCount: 6, maxInputBytes: 5 * 1024 * 1024,
+                mediaTypes: ["image/jpeg", "image/png", "image/webp", "image/heic"] }
+    });
+  };
+  serverSample.maxChars = 7000;
+  serverSample.label = "서버 제공";
+
   /* ==================== Gemini — 무료 티어 키 ====================
      구글 AI Studio에서 카드 없이 키를 발급받을 수 있고, Flash 계열은
      하루 한도 안에서 무료다. 모델 이름이 자주 바뀌므로 하드코딩하지 않고
@@ -1033,7 +1131,23 @@
         var mode = aiMode();
         if (mode === "local") S.sample = webllmSample;
         else if (mode === "gemini" && gemKey() && gemModel()) S.sample = geminiSample;
+        else if (mode === "key" && getKey()) S.sample = apiSample;
         else if (getKey()) S.sample = apiSample;
+      }
+      // 배포 서버가 AI를 대신 불러주면 그걸 기본으로 쓴다 (아무것도 안 넣어도 되는 쪽)
+      if (S.standalone) {
+        probeServer().then(function (info) {
+          S.serverInfo = info;
+          if (!info || !info.keyless) return;
+          var m = aiMode();
+          if (!m || m === "server") {
+            setAiMode("server");
+            S.sample = serverSample;
+            return serverSample.limits().then(function (l) {
+              S.imgLimits = (l && l.images) || null;
+            });
+          }
+        }).then(function () { render(); }).catch(function () {});
       }
       if (S.sample && S.sample.limits) {
         S.sample.limits().then(function (l) {
@@ -1697,8 +1811,18 @@
       var gpu = !!navigator.gpu;
       var mi = localModelInfo();
 
+      var srv = S.serverInfo;
+      var srvCard = (srv && srv.keyless)
+        ? '<button type="button" class="mdc' + (mode === "server" ? " on" : "") +
+          '" data-a="aipick" data-m="server" style="padding:15px">' +
+          '<span class="tag">준비 끝 · 권장</span><h3 style="font-size:16px">서버 제공</h3>' +
+          "<p style='margin-bottom:0;font-size:12.5px'>아무것도 안 넣어도 바로 쓴다. " +
+          "이 사이트를 올린 사람의 키로 돌아간다.</p></button>"
+        : "";
+      var cols = srvCard ? 4 : 3;
       var pickRow =
-        '<div class="mdg" style="grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:22px">' +
+        '<div class="mdg" style="grid-template-columns:repeat(' + cols +
+        ',minmax(0,1fr));gap:10px;margin-bottom:22px">' + srvCard +
         '<button type="button" class="mdc' + (mode === "gemini" ? " on" : "") +
         '" data-a="aipick" data-m="gemini" style="padding:15px">' +
         '<span class="tag">무료 · 권장</span><h3 style="font-size:16px">Gemini</h3>' +
@@ -1718,7 +1842,23 @@
         "사용료는 키 주인 부담.</p></button></div>";
 
       var body;
-      if (mode === "gemini") {
+      if (mode === "server") {
+        body =
+          '<div class="note calm"><b>넣을 게 없다.</b> 이 사이트가 AI를 대신 불러준다. ' +
+          "‘닫기’를 누르고 바로 자료를 넣으면 된다." +
+          (srv && srv.needsPasscode ? " 다만 이 서버는 암구호가 걸려 있다." : "") +
+          "<br><br>사용료는 이 사이트를 올린 사람이 부담한다. " +
+          "한도를 다 쓰면 다른 방법으로 잠시 바꿔 쓰면 된다.</div>" +
+          (srv && srv.needsPasscode
+            ? '<div class="field" style="margin-top:16px"><label for="pc">암구호</label>' +
+              '<input type="password" id="pc" data-focus autocomplete="off" value="' +
+              esc(passcode()) + '"></div>'
+            : "") +
+          '<div class="mrowb">' +
+          (srv && srv.needsPasscode
+            ? '<button type="button" class="btn solid" data-a="savepass">암구호 저장</button>' : "") +
+          '<button type="button" class="btn solid" data-a="closemodal">닫기</button></div>';
+      } else if (mode === "gemini") {
         var gk = gemKey();
         var chosen = gemModel();
         var models = S.gemModels || [];
@@ -2045,6 +2185,10 @@
       "WebGPU: " + (navigator.gpu ? "있음" : "없음"),
       "모델 받아둠: " + (llmModelLoaded || "없음"),
       "Gemini 키/모델: " + (gemKey() ? "있음 / " + (gemModel() || "미정") : "없음"),
+      "배포 서버: " + (S.serverInfo
+        ? (S.serverInfo.keyless ? "AI 대신 불러줌 · 모델 " + (S.serverInfo.model || "?")
+           : "함수는 있는데 키가 설정 안 됨")
+        : "없음 (정적 호스팅이거나 아직 조회 전)"),
       "API 키 저장됨: " + (getKey() ? "예" : "아니오"),
       "저장소: " + (S.dbOK ? "서버 (공유됨)" : "이 브라우저에만"),
       "이미지 전송: " + (S.imgLimits ? "가능 (한 번에 " + S.imgLimits.maxCount + "장)" : "불가"),
@@ -2104,6 +2248,9 @@
     image_rejected: "사진이 거절됐다. 장수가 너무 많거나, 용량이 크거나, 지원하지 않는 형식이다.",
     upstream_error: "연결이 끊기거나 일시적인 오류가 났다. 다시 눌러줘.",
     no_questions: "Claude가 답은 했는데 문제 형식이 맞지 않았다. 이 단원 내용이 짧으면 잘 생긴다 — 문제 수를 줄이거나 자료를 더 넣어줘.",
+    server_unset: "이 서버에 아직 키가 설정되지 않았다. 배포한 사람이 Vercel 환경변수에 GEMINI_API_KEY를 넣어야 한다. 그 전까지는 직접 키를 넣거나 브라우저 모델을 쓰면 된다.",
+    server_key: "서버에 설정된 키에 문제가 있다. 배포한 사람이 확인해야 한다. 급하면 직접 키를 넣는 쪽으로 바꿔줘.",
+    need_passcode: "이 서버는 암구호가 걸려 있다. AI 연결 화면에서 암구호를 넣어줘.",
     bad_gemkey: "Gemini 키가 거부됐다. aistudio.google.com 에서 만든 키가 맞는지, 그대로 붙여넣었는지 확인해줘.",
     gem_quota: "Gemini 무료 하루 한도를 넘겼다. 잠시 뒤 다시 되고, 자정(태평양 시간)에 초기화된다. 급하면 ‘이 기기에서’ 쪽으로 바꿔 쓰면 된다.",
     no_webgpu: "이 브라우저에서 WebGPU를 쓸 수 없어 무료 모델을 돌릴 수 없다. 최신 크롬이나 엣지(데스크톱)에서 열거나, API 키 쪽을 써줘.",
@@ -2548,10 +2695,27 @@
     }
 
     if (a === "apikey") { S.modal = { type: "apikey" }; render(); return; }
-    if (a === "aipick") { S.modal = { type: "apikey", pick: el.getAttribute("data-m") }; render(); return; }
+    if (a === "aipick") {
+      var pm = el.getAttribute("data-m");
+      if (pm === "server" && S.serverInfo && S.serverInfo.keyless) {
+        setAiMode("server");
+        S.sample = serverSample;
+        serverSample.limits().then(function (l) {
+          S.imgLimits = (l && l.images) || null;
+          S.modal = { type: "apikey", pick: "server" }; render();
+        });
+        return;
+      }
+      S.modal = { type: "apikey", pick: pm }; render(); return;
+    }
     if (a === "localmodel") {
       setLocalModel(el.getAttribute("data-id"));
       S.modal = { type: "apikey", pick: "local" }; render(); return;
+    }
+    if (a === "savepass") {
+      var pcEl = document.getElementById("pc");
+      setPasscode(pcEl ? pcEl.value.trim() : "");
+      S.modal = null; render(); return;
     }
     if (a === "gemmodel") {
       setGemModel(el.getAttribute("data-id"));
