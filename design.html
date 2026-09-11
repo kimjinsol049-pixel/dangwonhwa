@@ -1,0 +1,1179 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>단권화 화면 시안</title>
+<meta name="description" content="자료를 넣으면 단원별 정리본을 만들고, 그 내용으로 문제를 내고 채점해주는 시험대비 앱.">
+<style>html{color-scheme:light dark}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>단권화 화면 시안</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700&family=Gothic+A1:wght@300;400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  /* ===== 시안 페이지 크롬 — 보는 사람의 테마를 따름 ===== */
+  :root{
+    --bg:#f4f4f1; --surface:#ffffff; --ink:#16181a; --ink2:#4b5157; --muted:#767d84;
+    --rule:#dedeD8; --rule-2:#c6c7c0; --accent:#2c5f52; --accent-ink:#ffffff;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#121416; --surface:#1a1d1f; --ink:#e8e9e6; --ink2:#b0b6b9; --muted:#858d92;
+      --rule:#2a2e31; --rule-2:#3a3f43; --accent:#6fbfa6; --accent-ink:#0e1513;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#121416; --surface:#1a1d1f; --ink:#e8e9e6; --ink2:#b0b6b9; --muted:#858d92;
+    --rule:#2a2e31; --rule-2:#3a3f43; --accent:#6fbfa6; --accent-ink:#0e1513;
+  }
+
+  *{box-sizing:border-box;}
+  body{background:var(--bg);color:var(--ink);font-family:'Gothic A1','Apple SD Gothic Neo',system-ui,sans-serif;
+       -webkit-font-smoothing:antialiased;}
+  a{color:var(--accent);text-decoration:none;}
+  a:hover{text-decoration:underline;}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+
+  .wrap{max-width:1180px;margin:0 auto;padding:0 28px;}
+
+  /* ---------- top rail ---------- */
+  .rail{position:sticky;top:0;z-index:20;background:var(--bg);border-bottom:1px solid var(--rule);}
+  .rail-in{max-width:1180px;margin:0 auto;padding:0 28px;min-height:60px;display:flex;align-items:center;
+           justify-content:space-between;gap:20px;flex-wrap:wrap;}
+  .brand{display:flex;align-items:baseline;gap:10px;min-width:0;}
+  .brand b{font-size:16px;font-weight:700;letter-spacing:-.02em;}
+  .brand span{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);
+              letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;}
+  .railr{display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+  .jump{display:flex;gap:3px;flex-wrap:wrap;}
+  .jump a{font-size:12.5px;color:var(--ink2);padding:6px 9px;border:1px solid var(--rule);
+          background:var(--surface);white-space:nowrap;}
+  .jump a:hover{text-decoration:none;border-color:var(--rule-2);color:var(--ink);}
+  .skin{display:inline-flex;align-items:center;gap:7px;font-family:inherit;font-size:12.5px;
+        border:1px solid var(--rule-2);background:var(--surface);color:var(--ink);padding:0 11px;
+        height:32px;cursor:pointer;white-space:nowrap;}
+  .skin svg{color:var(--muted);}
+
+  /* ---------- intro ---------- */
+  .intro{padding:62px 0 0;}
+  .eyebrow{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.14em;
+           text-transform:uppercase;color:var(--muted);margin:0 0 14px;}
+  h1{font-size:38px;line-height:1.22;letter-spacing:-.03em;margin:0 0 18px;text-wrap:balance;font-weight:700;}
+  .lede{font-size:16px;line-height:1.75;color:var(--ink2);max-width:62ch;margin:0 0 10px;}
+  .lede strong{color:var(--ink);font-weight:500;}
+
+  .decided{margin:34px 0 8px;border-top:1px solid var(--rule-2);}
+  .dec{display:grid;grid-template-columns:180px minmax(0,1fr);gap:20px;padding:15px 0;
+       border-bottom:1px solid var(--rule);align-items:baseline;}
+  .dec dt{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+          color:var(--muted);margin:0;}
+  .dec dd{margin:0;font-size:14.5px;line-height:1.7;color:var(--ink2);}
+  .dec dd b{color:var(--ink);font-weight:500;}
+
+  /* ---------- group divider ---------- */
+  .grp{margin:82px 0 0;padding-top:22px;border-top:2px solid var(--ink);display:flex;
+       align-items:baseline;gap:14px;flex-wrap:wrap;}
+  .grp h2{font-size:21px;margin:0;letter-spacing:-.02em;font-weight:700;}
+  .grp p{margin:0;font-size:13.5px;color:var(--muted);line-height:1.6;flex:1 1 300px;}
+
+  /* ---------- screen section ---------- */
+  .scr{padding:48px 0 0;scroll-margin-top:96px;}
+  .shead{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;padding-bottom:12px;}
+  .step-n{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:500;letter-spacing:.1em;
+          color:var(--accent-ink);background:var(--accent);padding:5px 9px;white-space:nowrap;}
+  .shead h3{font-size:25px;margin:0;letter-spacing:-.025em;font-weight:700;}
+  .sdesc{font-size:14.5px;line-height:1.75;color:var(--ink2);max-width:70ch;margin:0 0 4px;
+         padding-bottom:20px;border-bottom:1px solid var(--rule);}
+  .sdesc b{color:var(--ink);font-weight:500;}
+
+  .frame{margin:24px 0 0;overflow-x:auto;border:1px solid var(--rule-2);}
+  .cap{display:flex;justify-content:space-between;gap:16px;padding:11px 2px 0;font-size:12px;
+       color:var(--muted);font-family:'IBM Plex Mono',monospace;letter-spacing:.04em;flex-wrap:wrap;}
+
+  /* ================= 앱 팔레트 — 라이트 ================= */
+  .fb{min-width:940px;overflow:hidden;position:relative;
+    --p-bg:#fcfcfa; --p-surface:#ffffff; --p-soft:#faf8f4; --p-soft2:#f8f5ef;
+    --p-ink:#111110; --p-ink2:#5f5f5a; --p-ink3:#7a7a74;
+    --p-rule:#e2e2dc; --p-rule2:#d8d8d2;
+    --p-pen:#bf3b2e; --p-penbg:#fbf7f4;
+    --p-hl:#f2e7b8; --p-hlink:#111110;
+    --p-sel:#f4efe6;
+    --p-solidbg:#111110; --p-solidink:#fcfcfa;
+    --p-track:#ececE6; --p-fill:#a9a9a1; --p-omr:#cfcfc8;
+  }
+  /* ================= 앱 팔레트 — 다크 ================= */
+  body[data-mock="dark"] .fb{
+    --p-bg:#1a1917; --p-surface:#211f1c; --p-soft:#1e1c1a; --p-soft2:#232019;
+    --p-ink:#ece8e0; --p-ink2:#a8a29a; --p-ink3:#8d877e;
+    --p-rule:#302c27; --p-rule2:#403b35;
+    --p-pen:#e0705f; --p-penbg:#2a201d;
+    --p-hl:#4d4327; --p-hlink:#f7edc8;
+    --p-sel:#2a2621;
+    --p-solidbg:#ece8e0; --p-solidink:#1a1917;
+    --p-track:#2c2924; --p-fill:#6b665e; --p-omr:#4a453e;
+  }
+
+  /* ================= 공통 셸 ================= */
+  .pg{height:100%;background:var(--p-bg);color:var(--p-ink);display:flex;flex-direction:column;
+      font-family:'Gothic A1',sans-serif;}
+  .bar{height:62px;flex:0 0 62px;display:flex;align-items:center;justify-content:space-between;
+       padding:0 32px;border-bottom:1px solid var(--p-rule2);gap:18px;}
+  .bl{display:flex;align-items:center;gap:13px;min-width:0;}
+  .wm{font-family:'Nanum Myeongjo',serif;font-size:18px;letter-spacing:-.01em;white-space:nowrap;}
+  .vr{width:1px;height:15px;background:var(--p-rule2);flex:0 0 1px;}
+  .crumb{font-size:13px;color:var(--p-ink2);white-space:nowrap;}
+  .br{display:flex;align-items:center;gap:9px;}
+  .btn{display:inline-flex;align-items:center;gap:7px;font-family:inherit;font-size:13.5px;height:38px;
+       padding:0 14px;cursor:pointer;border:1px solid var(--p-rule2);background:transparent;
+       color:var(--p-ink);}
+  .btn.solid{background:var(--p-solidbg);color:var(--p-solidink);border-color:var(--p-solidbg);padding:0 17px;}
+  .btn.sm{height:33px;font-size:12.5px;padding:0 11px;}
+  .btn.ico{padding:0;width:38px;justify-content:center;}
+  .btn.ico.sm{width:33px;}
+  .lab{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--p-ink3);margin:0 0 12px;}
+  .count{font-family:'Nanum Myeongjo',serif;font-size:13.5px;color:var(--p-ink2);
+         font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .i-moon{display:none;}
+  body[data-mock="dark"] .i-sun{display:none;}
+  body[data-mock="dark"] .i-moon{display:inline;}
+
+  /* ================= 홈 ================= */
+  .hm{flex:1;padding:28px 32px;overflow-y:auto;min-height:0;}
+  .hgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin-bottom:32px;}
+  .hcard{border:1px solid var(--p-rule2);background:var(--p-surface);padding:20px 20px 16px;display:flex;
+         flex-direction:column;min-height:214px;}
+  .hkind{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--p-ink3);margin-bottom:8px;}
+  .hname{font-family:'Nanum Myeongjo',serif;font-size:20px;font-weight:700;letter-spacing:-.01em;
+         margin:0 0 14px;line-height:1.3;}
+  .hst{display:flex;flex-direction:column;gap:6px;}
+  .hst span{display:flex;justify-content:space-between;font-size:13px;gap:10px;}
+  .hst b{font-weight:400;color:var(--p-ink2);}
+  .hst i{font-style:normal;font-variant-numeric:tabular-nums;color:var(--p-ink);}
+  .hst i.rate{font-family:'Nanum Myeongjo',serif;font-size:15px;}
+  .hfoot{margin-top:auto;padding-top:15px;border-top:1px solid var(--p-rule);display:flex;
+         align-items:center;justify-content:space-between;gap:10px;}
+  .shr{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--p-ink3);}
+  .go{font-size:13px;color:var(--p-ink);display:inline-flex;align-items:center;gap:5px;font-weight:500;}
+
+  .weak{border-top:2px solid var(--p-ink);padding-top:20px;}
+  .wtop{display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin-bottom:16px;
+        flex-wrap:wrap;}
+  .wtop h4{font-family:'Nanum Myeongjo',serif;font-size:19px;margin:0;font-weight:700;}
+  .wtop span{font-size:12.5px;color:var(--p-ink3);}
+  .wbody{display:grid;grid-template-columns:minmax(0,1fr) 296px;gap:34px;}
+  .wrow{display:grid;grid-template-columns:1fr 82px;gap:14px;align-items:center;padding:9px 0;
+        border-bottom:1px solid var(--p-rule);}
+  .wrow:last-child{border-bottom:0;}
+  .wnm{display:flex;align-items:baseline;gap:9px;min-width:0;}
+  .wnm b{font-size:13.5px;font-weight:500;}
+  .wnm em{font-style:normal;font-size:11.5px;color:var(--p-ink3);white-space:nowrap;}
+  .wtr{height:5px;background:var(--p-track);margin-top:6px;}
+  .wtr i{display:block;height:5px;background:var(--p-fill);}
+  .wrow.bad .wtr i{background:var(--p-pen);}
+  .wrow.bad .wnm b{color:var(--p-pen);}
+  .wnum{font-family:'Nanum Myeongjo',serif;font-size:15px;text-align:right;
+        font-variant-numeric:tabular-nums;color:var(--p-ink2);}
+  .wrow.bad .wnum{color:var(--p-pen);}
+  .wside{border-left:1px solid var(--p-rule);padding-left:24px;}
+  .wsh{font-size:12.5px;line-height:1.8;color:var(--p-ink2);margin:0 0 16px;}
+  .wsh b{color:var(--p-pen);font-weight:500;}
+  .wpat{border:1px solid var(--p-rule);border-left:3px solid var(--p-pen);background:var(--p-penbg);
+        padding:13px 15px;font-size:12.5px;line-height:1.75;color:var(--p-ink2);margin-bottom:16px;}
+  .wpat b{color:var(--p-pen);font-weight:500;}
+
+  /* ================= 자료 추가 ================= */
+  .up{flex:1;padding:30px 32px 28px;overflow-y:auto;min-height:0;display:flex;flex-direction:column;}
+  .uh{font-family:'Nanum Myeongjo',serif;font-size:23px;font-weight:700;margin:0 0 5px;}
+  .usub{font-size:13.5px;color:var(--p-ink2);margin:0 0 22px;line-height:1.7;}
+  .uways{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:22px;}
+  .uw{border:1px solid var(--p-rule2);background:var(--p-surface);padding:15px 16px;display:flex;gap:12px;
+      align-items:flex-start;cursor:pointer;}
+  .uw.on{border-color:var(--p-ink);box-shadow:inset 0 0 0 1px var(--p-ink);background:var(--p-sel);}
+  .uw svg{color:var(--p-ink2);flex:0 0 auto;margin-top:2px;}
+  .uw.on svg{color:var(--p-ink);}
+  .uw b{display:block;font-size:13.5px;font-weight:500;margin-bottom:3px;}
+  .uw p{margin:0;font-size:12px;line-height:1.55;color:var(--p-ink3);}
+  .ubox{border:1px solid var(--p-rule2);background:var(--p-surface);padding:18px 20px;margin-bottom:14px;}
+  .ubox p{font-family:'Nanum Myeongjo',serif;font-size:15px;line-height:1.85;color:var(--p-ink2);margin:0;}
+  .ubox em{font-style:normal;color:var(--p-ink3);}
+  .ucar{display:flex;align-items:center;gap:11px;margin-bottom:26px;flex-wrap:wrap;}
+  .uhint{font-size:12.5px;color:var(--p-ink3);}
+  .ulist{border-top:2px solid var(--p-ink);padding-top:16px;}
+  .urow{display:grid;grid-template-columns:22px minmax(0,1fr) 92px 84px 114px;gap:14px;align-items:center;
+        padding:10px 0;border-bottom:1px solid var(--p-rule);font-size:13px;}
+  .urow svg{color:var(--p-ink3);}
+  .urow b{font-weight:400;}
+  .urow span{color:var(--p-ink3);font-size:12.5px;}
+  .urow .ok,.urow .sec{color:var(--p-ink2);font-size:12.5px;}
+
+  /* ================= 정리본 ================= */
+  .sm{flex:1;display:grid;grid-template-columns:252px minmax(0,1fr);min-height:0;}
+  .toc{border-right:1px solid var(--p-rule2);padding:22px 20px;overflow-y:auto;min-height:0;
+       background:var(--p-soft);}
+  .toc ol{list-style:none;margin:0;padding:0;}
+  .toc li{font-size:13px;padding:7px 0;color:var(--p-ink2);display:flex;justify-content:space-between;gap:10px;}
+  .toc li em{font-style:normal;color:var(--p-ink3);font-size:11.5px;font-variant-numeric:tabular-nums;}
+  .toc li.sub{padding-left:16px;font-size:12.5px;}
+  .toc li.cur{color:var(--p-ink);font-weight:700;border-left:2px solid var(--p-pen);padding-left:14px;
+              margin-left:-16px;}
+  .toc li b{font-weight:400;color:var(--p-ink);}
+  .doc{padding:30px 40px;overflow-y:auto;min-height:0;}
+  .dinner{max-width:640px;}
+  .dcrumb{font-size:12px;color:var(--p-ink3);margin:0 0 10px;letter-spacing:.02em;}
+  .dh{font-family:'Nanum Myeongjo',serif;font-size:26px;font-weight:700;letter-spacing:-.02em;
+      margin:0 0 16px;line-height:1.35;}
+  .dp{font-family:'Nanum Myeongjo',serif;font-size:16px;line-height:1.9;color:var(--p-ink);margin:0 0 14px;}
+  .dp mark{background:var(--p-hl);color:var(--p-hlink);padding:1px 2px;}
+  .tblwrap{overflow-x:auto;margin:18px 0 16px;border-top:1.5px solid var(--p-ink);
+           border-bottom:1.5px solid var(--p-ink);}
+  .stbl{border-collapse:collapse;width:100%;font-size:13px;}
+  .stbl th,.stbl td{text-align:left;padding:9px 12px 9px 0;border-bottom:1px solid var(--p-rule);
+                    white-space:nowrap;}
+  .stbl tr:last-child td,.stbl tr:last-child th{border-bottom:0;}
+  .stbl thead th{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--p-ink3);
+                 font-weight:500;border-bottom:1px solid var(--p-rule2);}
+  .stbl tbody th{font-weight:400;font-size:13.5px;color:var(--p-ink);}
+  .stbl td{font-family:'Nanum Myeongjo',serif;color:var(--p-ink2);font-variant-numeric:tabular-nums;}
+  .stbl td.hi{color:var(--p-pen);}
+  .keybox{border:1px solid var(--p-rule2);background:var(--p-soft2);padding:15px 18px;margin:18px 0 14px;}
+  .keybox .lab{margin-bottom:9px;}
+  .keybox ul{margin:0;padding-left:18px;}
+  .keybox li{font-family:'Nanum Myeongjo',serif;font-size:14.5px;line-height:1.8;color:var(--p-ink);
+             margin-bottom:5px;}
+  .keybox li b{color:var(--p-pen);font-weight:700;}
+  .src{font-size:12px;color:var(--p-ink3);padding-top:10px;border-top:1px solid var(--p-rule);margin:16px 0 0;}
+  .invite{border:1px solid var(--p-rule2);background:var(--p-surface);padding:16px 18px;margin:22px 0 0;
+          display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;}
+  .invite b{font-size:14px;font-weight:500;display:block;margin-bottom:3px;}
+  .invite p{margin:0;font-size:12.5px;color:var(--p-ink3);line-height:1.6;}
+
+  /* ================= 모드 고르기 ================= */
+  .md{flex:1;padding:34px 32px;overflow-y:auto;min-height:0;display:flex;flex-direction:column;
+      align-items:center;}
+  .mdin{width:100%;max-width:760px;}
+  .mdh{font-family:'Nanum Myeongjo',serif;font-size:24px;font-weight:700;margin:0 0 6px;}
+  .mdsub{font-size:13.5px;color:var(--p-ink2);margin:0 0 24px;line-height:1.7;}
+  .mdg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-bottom:28px;}
+  .mdc{border:1px solid var(--p-rule2);background:var(--p-surface);padding:22px 22px 20px;
+       display:flex;flex-direction:column;cursor:pointer;}
+  .mdc.on{border-color:var(--p-ink);box-shadow:inset 0 0 0 1px var(--p-ink);background:var(--p-sel);}
+  .mdc h4{font-family:'Nanum Myeongjo',serif;font-size:20px;margin:0 0 6px;font-weight:700;}
+  .mdc .tag{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--p-ink3);
+            margin-bottom:9px;display:block;}
+  .mdc>p{margin:0 0 16px;font-size:13.5px;line-height:1.75;color:var(--p-ink2);}
+  .mdc ul{margin:0 0 16px;padding:0;list-style:none;display:flex;flex-direction:column;gap:7px;}
+  .mdc li{font-size:12.5px;color:var(--p-ink2);display:flex;gap:8px;align-items:flex-start;line-height:1.6;}
+  .mdc li svg{flex:0 0 auto;margin-top:3px;color:var(--p-ink3);}
+  .mdwhen{margin-top:auto;padding-top:14px;border-top:1px solid var(--p-rule);font-size:12.5px;
+          color:var(--p-ink);}
+  .mdwhen b{color:var(--p-pen);font-weight:500;}
+  .mdset{border-top:2px solid var(--p-ink);padding-top:18px;}
+  .mdrow{display:flex;align-items:center;gap:14px;padding:11px 0;border-bottom:1px solid var(--p-rule);
+         flex-wrap:wrap;}
+  .mdrow:last-of-type{border-bottom:0;}
+  .mdrow>span{font-size:12.5px;color:var(--p-ink3);width:78px;flex:0 0 78px;letter-spacing:.04em;}
+  .chips{display:flex;gap:7px;flex-wrap:wrap;}
+  .chip{font-size:12.5px;border:1px solid var(--p-rule2);background:var(--p-surface);padding:7px 12px;
+        color:var(--p-ink2);cursor:pointer;}
+  .chip.on{border-color:var(--p-ink);color:var(--p-ink);background:var(--p-sel);font-weight:500;}
+  .mdgo{display:flex;align-items:center;gap:13px;margin-top:22px;flex-wrap:wrap;}
+
+  /* ================= 문제 / 답 확인 ================= */
+  .q{flex:1;display:flex;justify-content:center;padding:34px 32px 30px;overflow-y:auto;min-height:0;}
+  .qcol{width:100%;max-width:660px;}
+  .qmeta{display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap;}
+  .qtopic{font-size:12px;color:var(--p-ink2);border-bottom:1px solid var(--p-ink);padding-bottom:2px;}
+  .qsrc{font-size:12px;color:var(--p-ink3);}
+  .qq{display:flex;gap:13px;align-items:flex-start;margin-bottom:22px;}
+  .qno{font-family:'Nanum Myeongjo',serif;font-size:20px;font-weight:700;line-height:1.6;flex:0 0 auto;}
+  .qstem{font-family:'Nanum Myeongjo',serif;font-size:19px;line-height:1.7;letter-spacing:-.01em;}
+  .qpt{font-family:'Nanum Myeongjo',serif;font-size:14px;color:var(--p-pen);white-space:nowrap;}
+  .opts{border-top:1px solid var(--p-ink);}
+  .opt{display:flex;align-items:center;gap:13px;min-height:52px;padding:0 10px;
+       border-bottom:1px solid var(--p-rule);}
+  .opt.sel{background:var(--p-sel);border-bottom-color:var(--p-ink);}
+  .onum{font-family:'Nanum Myeongjo',serif;font-size:16px;width:22px;flex:0 0 22px;}
+  .otxt{font-family:'Nanum Myeongjo',serif;font-size:16px;}
+  .otxt em{font-style:normal;color:var(--p-ink3);font-size:13px;}
+  .opt.right .onum{color:var(--p-pen);border:1.5px solid var(--p-pen);border-radius:50%;width:24px;
+                   height:24px;flex:0 0 24px;display:flex;align-items:center;justify-content:center;
+                   font-size:14px;}
+  .opt.wrong .onum,.opt.wrong .otxt{color:var(--p-ink3);}
+  .opt.wrong .otxt{text-decoration:line-through;text-decoration-color:var(--p-pen);
+                   text-decoration-thickness:1.5px;text-underline-offset:2px;}
+  .mymark{margin-left:auto;font-size:11.5px;letter-spacing:.06em;color:var(--p-pen);white-space:nowrap;}
+  .qfoot{display:flex;align-items:center;gap:13px;margin-top:26px;flex-wrap:wrap;}
+  .qnote{margin-left:auto;font-size:12.5px;color:var(--p-ink3);}
+  .link{background:transparent;border:0;font-family:inherit;font-size:13.5px;color:var(--p-ink2);
+        text-decoration:underline;text-underline-offset:3px;cursor:pointer;padding:0 5px;height:38px;}
+
+  .sol{border-top:2px solid var(--p-pen);margin-top:24px;padding-top:18px;}
+  .solhd{display:flex;align-items:baseline;gap:12px;margin-bottom:14px;flex-wrap:wrap;}
+  .solhd .ans{font-family:'Nanum Myeongjo',serif;font-size:18px;font-weight:700;color:var(--p-pen);}
+  .solhd .mine{font-size:12.5px;color:var(--p-ink3);}
+  .solgrid{display:grid;grid-template-columns:minmax(0,1fr) 250px;gap:26px;}
+  .solp{font-family:'Nanum Myeongjo',serif;font-size:15px;line-height:1.85;color:var(--p-ink);margin:0 0 11px;}
+  .solwhy{margin:0;padding-left:17px;}
+  .solwhy li{font-family:'Nanum Myeongjo',serif;font-size:14px;line-height:1.8;color:var(--p-ink2);
+             margin-bottom:4px;}
+  .quote{border-left:2px solid var(--p-rule2);padding-left:14px;}
+  .quote p{font-family:'Nanum Myeongjo',serif;font-size:13.5px;line-height:1.85;color:var(--p-ink2);
+           margin:0 0 10px;}
+  .quote mark{background:var(--p-hl);color:var(--p-hlink);padding:1px 2px;}
+  .quote a{font-size:12.5px;color:var(--p-ink);display:inline-flex;align-items:center;gap:5px;
+           border-bottom:1px solid var(--p-ink);padding-bottom:1px;}
+  .quote a:hover{text-decoration:none;color:var(--p-pen);border-color:var(--p-pen);}
+  .miss{margin-top:16px;border:1px solid var(--p-rule);border-left:3px solid var(--p-pen);
+        background:var(--p-penbg);padding:12px 15px;font-size:12.5px;line-height:1.7;color:var(--p-ink2);}
+  .miss b{color:var(--p-pen);font-weight:500;}
+
+  /* ================= 실전 모드 ================= */
+  .timer{font-family:'IBM Plex Mono',monospace;font-size:17px;font-weight:500;letter-spacing:.05em;
+         font-variant-numeric:tabular-nums;color:var(--p-ink);}
+  .timer.low{color:var(--p-pen);}
+  .ex{flex:1;display:grid;grid-template-columns:minmax(0,1fr) 208px;min-height:0;}
+  .exq{padding:34px 32px 30px;overflow-y:auto;min-height:0;display:flex;justify-content:center;}
+  .omr{border-left:1px solid var(--p-rule2);background:var(--p-soft);padding:20px 18px;overflow-y:auto;
+       min-height:0;}
+  .omrhd{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:4px;}
+  .omrhd .lab{margin-bottom:0;}
+  .omrhd em{font-style:normal;font-size:11px;color:var(--p-ink3);font-variant-numeric:tabular-nums;}
+  .omrtbl{margin-top:12px;border-top:1px solid var(--p-rule2);padding-top:8px;}
+  .omrrow{display:flex;align-items:center;gap:7px;padding:2.5px 0;}
+  .omrrow>em{font-style:normal;font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--p-ink3);
+             width:16px;flex:0 0 16px;text-align:right;font-variant-numeric:tabular-nums;}
+  .omrrow i{display:block;width:13px;height:13px;border-radius:50%;border:1px solid var(--p-omr);
+            flex:0 0 13px;}
+  .omrrow i.on{background:var(--p-ink);border-color:var(--p-ink);}
+  .omrrow.cur{background:var(--p-sel);margin:0 -8px;padding:2.5px 8px;}
+  .omrrow.cur>em{color:var(--p-pen);font-weight:500;}
+  .omrfoot{margin-top:14px;padding-top:12px;border-top:1px solid var(--p-rule2);font-size:11.5px;
+           line-height:1.7;color:var(--p-ink3);}
+  .omrfoot b{color:var(--p-pen);font-weight:500;}
+
+  /* ================= 채점 결과 ================= */
+  .rs{flex:1;padding:30px 32px 28px;overflow-y:auto;min-height:0;}
+  .rstop{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:34px;padding-bottom:24px;
+         border-bottom:2px solid var(--p-ink);margin-bottom:24px;}
+  .score{display:flex;align-items:baseline;gap:16px;margin-bottom:6px;flex-wrap:wrap;}
+  .score b{font-family:'Nanum Myeongjo',serif;font-size:46px;font-weight:700;line-height:1;
+           letter-spacing:-.02em;font-variant-numeric:tabular-nums;}
+  .score span{font-family:'Nanum Myeongjo',serif;font-size:20px;color:var(--p-ink2);}
+  .score em{font-style:normal;font-size:13px;color:var(--p-ink3);font-family:'IBM Plex Mono',monospace;}
+  .scsub{font-size:13px;color:var(--p-ink2);margin:0 0 18px;line-height:1.7;}
+  .sheet{display:flex;flex-wrap:wrap;gap:6px;}
+  .cell{width:38px;height:44px;border:1px solid var(--p-rule2);background:var(--p-surface);
+        display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;}
+  .cell em{font-style:normal;font-size:10px;color:var(--p-ink3);font-variant-numeric:tabular-nums;}
+  .cell b{font-family:'Nanum Myeongjo',serif;font-size:16px;font-weight:400;color:var(--p-ink2);}
+  .cell.o b{color:var(--p-ink);}
+  .cell.x{border-color:var(--p-pen);background:var(--p-penbg);}
+  .cell.x b{color:var(--p-pen);font-weight:700;}
+  .rsside{border-left:1px solid var(--p-rule);padding-left:24px;}
+  .rsp{font-size:12.5px;line-height:1.8;color:var(--p-ink2);margin:0 0 14px;}
+  .rsp b{color:var(--p-pen);font-weight:500;}
+  .rsbot{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:34px;}
+  .rsacts{display:flex;gap:11px;flex-wrap:wrap;margin-top:20px;}
+
+  /* ---------- next ---------- */
+  .next{padding:78px 0 90px;}
+  .next h2{font-size:25px;margin:0 0 10px;letter-spacing:-.025em;}
+  .steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(205px,1fr));gap:1px;background:var(--rule);
+         border:1px solid var(--rule);margin:26px 0 34px;}
+  .step{background:var(--surface);padding:17px 17px 19px;}
+  .step .n{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.1em;color:var(--muted);
+           display:block;margin-bottom:9px;}
+  .step.done{background:var(--bg);}
+  .step.done b,.step.done p{color:var(--muted);}
+  .step.on{background:var(--accent);}
+  .step.on .n,.step.on b,.step.on p{color:var(--accent-ink);}
+  .step b{display:block;font-size:14px;margin-bottom:5px;font-weight:500;}
+  .step p{margin:0;font-size:12.5px;line-height:1.6;color:var(--ink2);}
+  .ask{border-top:2px solid var(--ink);padding-top:20px;max-width:64ch;}
+  .ask p{font-size:15px;line-height:1.8;color:var(--ink2);margin:0 0 12px;}
+  .ask p b{color:var(--ink);font-weight:700;}
+  .caveat{margin-top:32px;font-size:12.5px;line-height:1.75;color:var(--muted);max-width:64ch;
+          border-left:2px solid var(--rule-2);padding-left:14px;}
+
+  @media (max-width:720px){
+    .wrap,.rail-in{padding:0 18px;}
+    h1{font-size:29px;}
+    .dec{grid-template-columns:1fr;gap:6px;}
+  }
+</style>
+
+<header class="rail">
+  <div class="rail-in">
+    <div class="brand"><b>단권화</b><span>화면 시안 · MVP 2</span></div>
+    <div class="railr">
+      <nav class="jump">
+        <a href="#home">홈</a>
+        <a href="#upload">자료 추가</a>
+        <a href="#summary">정리본</a>
+        <a href="#mode">모드</a>
+        <a href="#quiz">연습</a>
+        <a href="#answer">답 확인</a>
+        <a href="#exam">실전</a>
+        <a href="#result">결과</a>
+      </nav>
+      <button type="button" class="skin js-skin">
+        <svg class="i-sun" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
+        <svg class="i-moon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"></path></svg>
+        <span>앱 화면 라이트 · 다크</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main>
+<div class="wrap">
+
+  <section class="intro">
+    <p class="eyebrow">MVP 2 — 여덟 화면 · 두 가지 풀이 모드 · 라이트와 다크</p>
+    <h1>정리본이 본진이고, 문제는 두 가지 방식으로 푼다</h1>
+    <p class="lede">앱을 켜면 문제부터 푸는 게 아니라 <strong>정리본을 읽는다</strong>. 문제는 정리본 단원 끝에서 기다리다가, 들어가면 <strong>연습이냐 실전이냐</strong>를 먼저 묻는다.</p>
+    <p class="lede">오른쪽 위 버튼으로 <strong>아래 모든 앱 화면의 라이트·다크가 바뀐다</strong>. 눌러보고 판단해줘 — 이 시안 페이지 자체의 색은 네 시스템 테마를 그대로 따라가니까 따로 신경 안 써도 된다.</p>
+
+    <dl class="decided">
+      <div class="dec"><dt>기본 구조</dt><dd><b>A · 노트</b>를 그대로. 명조 지문, 얇은 괘선, ①~⑤ 보기, 빨간펜.</dd></div>
+      <div class="dec"><dt>연습 모드</dt><dd>한 문제 풀 때마다 <b>즉시 채점</b>. 답 확인이 그 자리에서 펼쳐지며 정리본 근거까지 같이.</dd></div>
+      <div class="dec"><dt>실전 모드</dt><dd>타이머 켜고 <b>OMR 답안지</b>에 마킹만. 전부 푼 뒤 제출하면 성적표가 나온다.</dd></div>
+      <div class="dec"><dt>취약점</dt><dd>풀이 화면에는 없다. <b>홈</b>에 모이고, 실전 결과가 여기로 흘러 들어간다.</dd></div>
+      <div class="dec"><dt>다크 모드</dt><dd>색을 뒤집지 않고 다시 골랐다. <b>종이가 램프 밑에 놓인 느낌</b>으로, 따뜻한 먹색 바탕에 크림색 글자.</dd></div>
+    </dl>
+  </section>
+
+  <!-- ================================================== -->
+  <div class="grp"><h2>기본</h2><p>과목을 만들고, 자료를 넣고, 정리본을 읽는다. 여기까지가 앱의 8할이다.</p></div>
+
+  <!-- ============ 1. 홈 ============ -->
+  <section class="scr" id="home">
+    <div class="shead"><span class="step-n">화면 1</span><h3>홈</h3></div>
+    <p class="sdesc">과목이 위, <b>약한 단원 분석이 아래</b>. 과목을 가로질러 정답률 낮은 순으로 줄을 세우고, 오른쪽에 왜 틀리는지를 한 문단으로 적는다. 취약점을 보여주는 데서 끝내지 않고 <b>그 단원만 푸는 버튼</b>까지 붙였다.</p>
+    <div class="frame"><div class="fb" style="height:772px;">
+      <div class="pg">
+        <div class="bar">
+          <div class="bl"><span class="wm">단권화</span></div>
+          <div class="br">
+            <button type="button" class="btn ico js-skin" aria-label="라이트 다크 전환">
+              <svg class="i-sun" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
+              <svg class="i-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"></path></svg>
+            </button>
+            <button type="button" class="btn">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+              자료 추가
+            </button>
+            <button type="button" class="btn solid">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              과목 추가
+            </button>
+          </div>
+        </div>
+        <div class="hm">
+          <div class="hgrid">
+            <div class="hcard">
+              <span class="hkind">대학 전공 · 기말</span>
+              <h4 class="hname">자료구조</h4>
+              <div class="hst">
+                <span><b>자료</b><i>6개</i></span>
+                <span><b>정리본</b><i>5단원</i></span>
+                <span><b>문제</b><i>84개</i></span>
+                <span><b>최근 정답률</b><i class="rate">72%</i></span>
+              </div>
+              <div class="hfoot">
+                <span class="shr">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.6" y1="10.5" x2="15.4" y2="6.5"></line><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"></line></svg>
+                  2명과 공유 중
+                </span>
+                <span class="go">정리본 열기
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                </span>
+              </div>
+            </div>
+            <div class="hcard">
+              <span class="hkind">자격증 · 필기</span>
+              <h4 class="hname">정보처리기사</h4>
+              <div class="hst">
+                <span><b>자료</b><i>11개</i></span>
+                <span><b>정리본</b><i>8단원</i></span>
+                <span><b>문제</b><i>210개</i></span>
+                <span><b>최근 정답률</b><i class="rate">68%</i></span>
+              </div>
+              <div class="hfoot">
+                <span class="shr">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="1.5"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>
+                  나만 보기
+                </span>
+                <span class="go">정리본 열기
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                </span>
+              </div>
+            </div>
+            <div class="hcard">
+              <span class="hkind">자격증 · 심화</span>
+              <h4 class="hname">한국사능력검정</h4>
+              <div class="hst">
+                <span><b>자료</b><i>4개</i></span>
+                <span><b>정리본</b><i>6단원</i></span>
+                <span><b>문제</b><i>62개</i></span>
+                <span><b>최근 정답률</b><i class="rate">81%</i></span>
+              </div>
+              <div class="hfoot">
+                <span class="shr">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.6" y1="10.5" x2="15.4" y2="6.5"></line><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"></line></svg>
+                  1명과 공유 중
+                </span>
+                <span class="go">정리본 열기
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div class="weak">
+            <div class="wtop">
+              <h4>약한 단원</h4>
+              <span>세 과목을 합쳐 최근 2주 · 정답률 낮은 순</span>
+            </div>
+            <div class="wbody">
+              <div>
+                <div class="wrow bad">
+                  <div>
+                    <div class="wnm"><b>정렬 알고리즘</b><em>자료구조 §2 · 17문제</em></div>
+                    <div class="wtr"><i style="width:41%"></i></div>
+                  </div>
+                  <span class="wnum">41%</span>
+                </div>
+                <div class="wrow bad">
+                  <div>
+                    <div class="wnm"><b>데이터베이스 정규화</b><em>정보처리기사 §4 · 23문제</em></div>
+                    <div class="wtr"><i style="width:44%"></i></div>
+                  </div>
+                  <span class="wnum">44%</span>
+                </div>
+                <div class="wrow bad">
+                  <div>
+                    <div class="wnm"><b>고려 후기 정치</b><em>한국사 §3 · 9문제</em></div>
+                    <div class="wtr"><i style="width:52%"></i></div>
+                  </div>
+                  <span class="wnum">52%</span>
+                </div>
+                <div class="wrow">
+                  <div>
+                    <div class="wnm"><b>그래프 순회</b><em>자료구조 §5 · 12문제</em></div>
+                    <div class="wtr"><i style="width:58%"></i></div>
+                  </div>
+                  <span class="wnum">58%</span>
+                </div>
+                <div class="wrow">
+                  <div>
+                    <div class="wnm"><b>트리와 힙</b><em>자료구조 §3 · 21문제</em></div>
+                    <div class="wtr"><i style="width:76%"></i></div>
+                  </div>
+                  <span class="wnum">76%</span>
+                </div>
+              </div>
+              <div class="wside">
+                <p class="lab">어디서 무너지나</p>
+                <p class="wsh"><b>정렬 알고리즘</b>에서 틀린 10문제 중 7개가 <b>평균과 최악을 바꿔 고른</b> 경우였다. 개념을 모르는 게 아니라 표를 세로로 잘못 읽는 쪽이다.</p>
+                <div class="wpat"><b>정규화</b>는 3NF까지 92%인데 BCNF부터 31%로 떨어진다. 정리본 §4.3이 얇아서 그럴 수 있으니 자료를 더 넣어보길 권한다.</div>
+                <button type="button" class="btn solid sm">약한 단원만 20문제 풀기</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div></div>
+    <div class="cap"><span>홈 · 과목과 약한 단원</span><span>과목명과 숫자는 예시 값</span></div>
+  </section>
+
+  <!-- ============ 2. 자료 추가 ============ -->
+  <section class="scr" id="upload">
+    <div class="shead"><span class="step-n">화면 2</span><h3>자료 추가</h3></div>
+    <p class="sdesc">텍스트 · PDF · 사진을 같은 자리에서 받는다. 아래 <b>이미 올린 자료 목록</b>이, 학기 중에 자료가 계속 쌓이는 게 정상이라는 걸 화면이 먼저 말해준다. 새 자료는 기존 정리본을 갈아엎지 않고 <b>해당 단원에 덧붙는다</b>.</p>
+    <div class="frame"><div class="fb" style="height:776px;">
+      <div class="pg">
+        <div class="bar">
+          <div class="bl"><span class="wm">단권화</span><i class="vr"></i><span class="crumb">자료구조 › 자료 추가</span></div>
+          <div class="br">
+            <button type="button" class="btn ico js-skin" aria-label="라이트 다크 전환">
+              <svg class="i-sun" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
+              <svg class="i-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"></path></svg>
+            </button>
+            <button type="button" class="btn">닫기</button>
+          </div>
+        </div>
+        <div class="up">
+          <h4 class="uh">무엇을 넣을까</h4>
+          <p class="usub">한 번에 여러 개 넣어도 된다. 정리는 자료별로 따로 돌고, 끝나는 대로 정리본에 붙는다.</p>
+
+          <div class="uways">
+            <div class="uw on">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="6" x2="20" y2="6"></line><line x1="4" y1="12" x2="20" y2="12"></line><line x1="4" y1="18" x2="14" y2="18"></line></svg>
+              <div><b>텍스트 붙여넣기</b><p>필기, 교재 발췌, 블로그 정리</p></div>
+            </div>
+            <div class="uw">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+              <div><b>PDF 올리기</b><p>강의자료, 기출문제집</p></div>
+            </div>
+            <div class="uw">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="1.5"></rect><circle cx="8.5" cy="9.5" r="1.6"></circle><polyline points="21 15 16 10.5 6 20"></polyline></svg>
+              <div><b>사진 올리기</b><p>손글씨 필기, 칠판, 교재 촬영</p></div>
+            </div>
+          </div>
+
+          <div class="ubox">
+            <p>비교 기반 정렬의 하한 — 어떤 비교 기반 정렬도 최악의 경우 Ω(n log n)번의 비교가 필요하다. 결정 트리 모델로 증명. 병합·힙·팀 정렬은 이 하한을 달성하므로 점근적으로 최적.<br>삽입 정렬 평균 O(n²)이지만 거의 정렬된 입력에선 O(n)에 가까워서 팀 정렬 내부에서 씀. 시험에 잘 나옴 — 평균/최악 구분 주의<em>│</em></p>
+          </div>
+
+          <div class="ucar">
+            <button type="button" class="btn solid">정리 시작</button>
+            <span class="uhint">1,240자 · 약 40초 걸린다</span>
+          </div>
+
+          <div class="ulist">
+            <p class="lab">이 과목에 올린 자료 6개</p>
+            <div class="urow">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+              <b>3주차 강의노트.pdf</b><span>9월 2일</span><span class="ok">정리됨</span><span class="sec">§2 정렬 알고리즘</span>
+            </div>
+            <div class="urow">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="1.5"></rect><circle cx="8.5" cy="9.5" r="1.6"></circle><polyline points="21 15 16 10.5 6 20"></polyline></svg>
+              <b>필기 사진 12장</b><span>8월 28일</span><span class="ok">정리됨</span><span class="sec">§1 배열과 리스트</span>
+            </div>
+            <div class="urow">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="6" x2="20" y2="6"></line><line x1="4" y1="12" x2="20" y2="12"></line><line x1="4" y1="18" x2="14" y2="18"></line></svg>
+              <b>교재 4장 발췌</b><span>8월 25일</span><span class="ok">정리됨</span><span class="sec">§3 트리와 힙</span>
+            </div>
+            <div class="urow">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+              <b>중간고사 기출.pdf</b><span>8월 20일</span><span class="ok">정리됨</span><span class="sec">전 단원</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div></div>
+    <div class="cap"><span>자료 추가 · 텍스트 선택 상태</span><span>붙여넣은 글은 실제 자료구조 필기 예시</span></div>
+  </section>
+
+  <!-- ============ 3. 정리본 ============ -->
+  <section class="scr" id="summary">
+    <div class="shead"><span class="step-n">화면 3</span><h3>정리본</h3></div>
+    <p class="sdesc">이 앱의 본진. 왼쪽 목차는 <b>자료에서 뽑아낸 단원 구조</b>이고 본문은 교재처럼 조판했다. 오른쪽 위 <b>PDF로 받기</b>가 요구 1번. 단원 끝에 문제 진입이 딱 하나 놓이는데 크게 외치지 않고 그냥 거기 있는다 — <b>읽으러 온 사람을 밀어내지 않으려고</b>.</p>
+    <div class="frame"><div class="fb" style="height:1060px;">
+      <div class="pg">
+        <div class="bar">
+          <div class="bl"><span class="wm">단권화</span><i class="vr"></i><span class="crumb">자료구조 정리본</span></div>
+          <div class="br">
+            <span class="uhint">자료 6개에서 · 9월 2일 갱신</span>
+            <button type="button" class="btn ico js-skin" aria-label="라이트 다크 전환">
+              <svg class="i-sun" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
+              <svg class="i-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"></path></svg>
+            </button>
+            <button type="button" class="btn">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.6" y1="10.5" x2="15.4" y2="6.5"></line><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"></line></svg>
+              공유
+            </button>
+            <button type="button" class="btn solid">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"></path><polyline points="7 11 12 16 17 11"></polyline><path d="M4 20h16"></path></svg>
+              PDF로 받기
+            </button>
+          </div>
+        </div>
+        <div class="sm">
+          <nav class="toc">
+            <p class="lab">단원</p>
+            <ol>
+              <li><b>1. 배열과 연결 리스트</b><em>14문제</em></li>
+              <li><b>2. 정렬 알고리즘</b><em>17문제</em></li>
+              <li class="sub">2.1 단순 정렬</li>
+              <li class="sub">2.2 분할 정복 정렬</li>
+              <li class="sub cur">2.3 비교 기반 정렬의 하한</li>
+              <li class="sub">2.4 비교하지 않는 정렬</li>
+              <li><b>3. 트리와 힙</b><em>21문제</em></li>
+              <li><b>4. 해시 테이블</b><em>18문제</em></li>
+              <li><b>5. 그래프 순회</b><em>12문제</em></li>
+            </ol>
+          </nav>
+          <div class="doc"><div class="dinner">
+            <p class="dcrumb">자료구조 › 2. 정렬 알고리즘</p>
+            <h4 class="dh">2.3 비교 기반 정렬의 하한</h4>
+            <p class="dp">원소를 오직 <b>비교</b>로만 판단하는 정렬은, 어떤 알고리즘이든 최악의 경우 Ω(n log n)번의 비교가 필요하다. n개 원소의 가능한 순열이 n!가지이고 비교 한 번이 경우의 수를 최대 절반으로만 줄이므로, 결정 트리의 높이가 최소 log₂(n!) ≈ n log n이 되기 때문이다.</p>
+            <p class="dp">따라서 병합 정렬 · 힙 정렬 · 팀 정렬은 이 하한을 달성하는 <b>점근적으로 최적</b>인 알고리즘이다. <mark>삽입 정렬은 평균 O(n²)</mark>이지만, 거의 정렬된 입력에서는 O(n)에 가깝게 동작해 팀 정렬의 내부 루틴으로 쓰인다.</p>
+
+            <div class="tblwrap">
+              <table class="stbl">
+                <thead>
+                  <tr><th scope="col">알고리즘</th><th scope="col">최선</th><th scope="col">평균</th><th scope="col">최악</th><th scope="col">추가 공간</th><th scope="col">안정성</th></tr>
+                </thead>
+                <tbody>
+                  <tr><th scope="row">병합 정렬</th><td>n log n</td><td>n log n</td><td>n log n</td><td>O(n)</td><td>안정</td></tr>
+                  <tr><th scope="row">퀵 정렬</th><td>n log n</td><td>n log n</td><td class="hi">n²</td><td>O(log n)</td><td>불안정</td></tr>
+                  <tr><th scope="row">힙 정렬</th><td>n log n</td><td>n log n</td><td>n log n</td><td>O(1)</td><td>불안정</td></tr>
+                  <tr><th scope="row">삽입 정렬</th><td>n</td><td class="hi">n²</td><td class="hi">n²</td><td>O(1)</td><td>안정</td></tr>
+                  <tr><th scope="row">팀 정렬</th><td>n</td><td>n log n</td><td>n log n</td><td>O(n)</td><td>안정</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="keybox">
+              <p class="lab">시험에 나오는 지점</p>
+              <ul>
+                <li>퀵 정렬은 <b>평균</b>만 n log n이고 최악은 n². 이미 정렬된 배열에서 첫 원소를 피벗으로 잡으면 최악이 터진다.</li>
+                <li>삽입 정렬의 최선 O(n)과 평균 O(n²)을 같이 묻는 문제가 잦다.</li>
+                <li>안정성을 묻는 문제에서 <b>힙 정렬</b>이 함정으로 자주 나온다 — 불안정하다.</li>
+              </ul>
+            </div>
+
+            <p class="src">출처 · 3주차 강의노트 p.12–15, 교재 4장 발췌 2건</p>
+
+            <div class="invite">
+              <div>
+                <b>이 단원 문제 17개</b>
+                <p>최근 정답률 41% · 마지막으로 푼 지 6일</p>
+              </div>
+              <button type="button" class="btn">풀어보기</button>
+            </div>
+          </div></div>
+        </div>
+      </div>
+    </div></div>
+    <div class="cap"><span>정리본 · §2.3 열린 상태</span><span>본문과 표는 실제 자료구조 내용</span></div>
+  </section>
+
+  <!-- ================================================== -->
+  <div class="grp"><h2>갈림길</h2><p>정리본의 “풀어보기”나 홈의 “약한 단원만 풀기”를 누르면 여기로 온다. 여기서 길이 둘로 나뉜다.</p></div>
+
+  <!-- ============ 4. 모드 고르기 ============ -->
+  <section class="scr" id="mode">
+    <div class="shead"><span class="step-n">화면 4</span><h3>모드 고르기</h3></div>
+    <p class="sdesc">두 모드는 <b>다른 목적</b>을 가진다. 연습은 개념을 붙이는 일이고 실전은 그게 붙었는지 재는 일이라, 한 화면에 섞으면 둘 다 어중간해진다. 그래서 들어가기 전에 한 번만 묻고, 안에서는 끝까지 그 모드로 간다. 마지막 선택은 기억해둬서 다음엔 그게 먼저 골라져 있다.</p>
+    <div class="frame"><div class="fb" style="height:700px;">
+      <div class="pg">
+        <div class="bar">
+          <div class="bl"><span class="wm">단권화</span><i class="vr"></i><span class="crumb">자료구조 › §2 정렬 알고리즘</span></div>
+          <div class="br">
+            <button type="button" class="btn ico js-skin" aria-label="라이트 다크 전환">
+              <svg class="i-sun" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
+              <svg class="i-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"></path></svg>
+            </button>
+            <button type="button" class="btn">정리본으로</button>
+          </div>
+        </div>
+        <div class="md"><div class="mdin">
+          <h4 class="mdh">어떻게 풀까</h4>
+          <p class="mdsub">§2 정렬 알고리즘 · 문제 17개가 준비돼 있다.</p>
+
+          <div class="mdg">
+            <div class="mdc on">
+              <span class="tag">기본값</span>
+              <h4>연습 모드</h4>
+              <p>한 문제 풀 때마다 바로 채점하고, 그 자리에서 풀이를 본다.</p>
+              <ul>
+                <li>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="4 12 9 17 20 6"></polyline></svg>
+                  답을 고르면 즉시 채점
+                </li>
+                <li>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="4 12 9 17 20 6"></polyline></svg>
+                  정리본 근거 문단을 같이 보여줌
+                </li>
+                <li>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="4 12 9 17 20 6"></polyline></svg>
+                  타이머 없음 · 중간에 나가도 이어서
+                </li>
+              </ul>
+              <p class="mdwhen">개념을 <b>막 정리했을 때</b></p>
+            </div>
+
+            <div class="mdc">
+              <span class="tag">시험 직전</span>
+              <h4>실전 모드</h4>
+              <p>전부 푼 다음 제출한다. 푸는 동안은 정답을 볼 수 없다.</p>
+              <ul>
+                <li>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="4 12 9 17 20 6"></polyline></svg>
+                  타이머 · 문항당 60초 기준
+                </li>
+                <li>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="4 12 9 17 20 6"></polyline></svg>
+                  OMR 답안지에 마킹 · 앞뒤로 이동
+                </li>
+                <li>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="4 12 9 17 20 6"></polyline></svg>
+                  제출하면 성적표와 틀린 문제 풀이
+                </li>
+              </ul>
+              <p class="mdwhen">시험이 <b>이틀 남았을 때</b></p>
+            </div>
+          </div>
+
+          <div class="mdset">
+            <div class="mdrow">
+              <span>문제 수</span>
+              <div class="chips">
+                <button type="button" class="chip">10개</button>
+                <button type="button" class="chip on">17개 전부</button>
+                <button type="button" class="chip">30개</button>
+              </div>
+            </div>
+            <div class="mdrow">
+              <span>범위</span>
+              <div class="chips">
+                <button type="button" class="chip on">§2 정렬 알고리즘</button>
+                <button type="button" class="chip">자료구조 전체</button>
+                <button type="button" class="chip">전에 틀린 것만</button>
+              </div>
+            </div>
+            <div class="mdrow">
+              <span>유형</span>
+              <div class="chips">
+                <button type="button" class="chip on">객관식</button>
+                <button type="button" class="chip on">OX</button>
+                <button type="button" class="chip on">단답</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="mdgo">
+            <button type="button" class="btn solid">연습 모드로 시작</button>
+            <span class="uhint">17문제 · 예상 20분</span>
+          </div>
+        </div></div>
+      </div>
+    </div></div>
+    <div class="cap"><span>모드 고르기 · 연습 모드 선택 상태</span><span>범위와 유형은 여기서 한 번만 정한다</span></div>
+  </section>
+
+  <!-- ================================================== -->
+  <div class="grp"><h2>연습 모드</h2><p>한 문제씩 풀고 바로 채점한다. 정리본을 읽다 넘어온 사람을 위한 길.</p></div>
+
+  <!-- ============ 5. 연습 · 문제 ============ -->
+  <section class="scr" id="quiz">
+    <div class="shead"><span class="step-n">화면 5</span><h3>연습 · 문제</h3></div>
+    <p class="sdesc">상단에 <b>어느 단원에서 들어왔는지</b>가 남아 있고, 정답률·통계는 없다. 푸는 동안은 문제만 보인다.</p>
+    <div class="frame"><div class="fb" style="height:606px;">
+      <div class="pg">
+        <div class="bar">
+          <div class="bl"><span class="wm">단권화</span><i class="vr"></i><span class="crumb">연습 · §2 정렬 알고리즘</span></div>
+          <div class="br">
+            <span class="count">3 / 17</span>
+            <button type="button" class="btn ico js-skin" aria-label="라이트 다크 전환">
+              <svg class="i-sun" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
+              <svg class="i-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"></path></svg>
+            </button>
+            <button type="button" class="btn">정리본으로</button>
+          </div>
+        </div>
+        <div class="q"><div class="qcol">
+          <div class="qmeta">
+            <span class="qtopic">비교 기반 정렬의 하한</span>
+            <span class="qsrc">정리본 §2.3에서 출제</span>
+          </div>
+          <div class="qq">
+            <span class="qno">3.</span>
+            <span class="qstem">다음 정렬 알고리즘 중 평균 시간복잡도가 O(n log n)이 <b>아닌</b> 것은? <span class="qpt">[3점]</span></span>
+          </div>
+          <div class="opts">
+            <div class="opt"><span class="onum">①</span><span class="otxt">병합 정렬 <em>Merge Sort</em></span></div>
+            <div class="opt"><span class="onum">②</span><span class="otxt">퀵 정렬 <em>Quick Sort</em></span></div>
+            <div class="opt"><span class="onum">③</span><span class="otxt">힙 정렬 <em>Heap Sort</em></span></div>
+            <div class="opt"><span class="onum">④</span><span class="otxt">삽입 정렬 <em>Insertion Sort</em></span></div>
+            <div class="opt sel"><span class="onum">⑤</span><span class="otxt">팀 정렬 <em>Tim Sort</em></span></div>
+          </div>
+          <div class="qfoot">
+            <button type="button" class="btn solid" style="height:46px;padding:0 28px;font-size:14.5px;">답 확인</button>
+            <button type="button" class="link">모르겠음, 다음</button>
+            <span class="qnote">언제든 나가도 푼 데까지 남는다</span>
+          </div>
+        </div></div>
+      </div>
+    </div></div>
+    <div class="cap"><span>연습 · ⑤ 선택한 상태</span><span>정답은 ④ — 일부러 틀리게 골라뒀다</span></div>
+  </section>
+
+  <!-- ============ 6. 연습 · 답 확인 ============ -->
+  <section class="scr" id="answer">
+    <div class="shead"><span class="step-n">화면 6</span><h3>연습 · 답 확인</h3></div>
+    <p class="sdesc">같은 화면에서 <b>아래로 펼쳐진다</b>. 페이지가 바뀌지 않아 내가 뭘 골랐는지 눈에 그대로 남는다. 채점은 한국 시험지 방식으로 <b>빨간펜 하나</b>만 쓴다 — 정답에 동그라미, 내가 고른 오답에 취소선. 오른쪽엔 정리본 원문을 형광펜 친 채로 떠 와서, 근거를 보려고 화면을 나갈 일이 없다.</p>
+    <div class="frame"><div class="fb" style="height:1090px;">
+      <div class="pg">
+        <div class="bar">
+          <div class="bl"><span class="wm">단권화</span><i class="vr"></i><span class="crumb">연습 · §2 정렬 알고리즘</span></div>
+          <div class="br">
+            <span class="count">3 / 17</span>
+            <button type="button" class="btn ico js-skin" aria-label="라이트 다크 전환">
+              <svg class="i-sun" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
+              <svg class="i-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"></path></svg>
+            </button>
+            <button type="button" class="btn">정리본으로</button>
+          </div>
+        </div>
+        <div class="q"><div class="qcol">
+          <div class="qmeta">
+            <span class="qtopic">비교 기반 정렬의 하한</span>
+            <span class="qsrc">정리본 §2.3에서 출제</span>
+          </div>
+          <div class="qq">
+            <span class="qno">3.</span>
+            <span class="qstem">다음 정렬 알고리즘 중 평균 시간복잡도가 O(n log n)이 <b>아닌</b> 것은? <span class="qpt">[3점]</span></span>
+          </div>
+          <div class="opts">
+            <div class="opt"><span class="onum">①</span><span class="otxt">병합 정렬 <em>Merge Sort</em></span></div>
+            <div class="opt"><span class="onum">②</span><span class="otxt">퀵 정렬 <em>Quick Sort</em></span></div>
+            <div class="opt"><span class="onum">③</span><span class="otxt">힙 정렬 <em>Heap Sort</em></span></div>
+            <div class="opt right"><span class="onum">④</span><span class="otxt">삽입 정렬 <em>Insertion Sort</em></span><span class="mymark">정답</span></div>
+            <div class="opt wrong"><span class="onum">⑤</span><span class="otxt">팀 정렬 <em>Tim Sort</em></span><span class="mymark">내가 고른 답</span></div>
+          </div>
+
+          <div class="sol">
+            <div class="solhd">
+              <span class="ans">정답 ④ 삽입 정렬</span>
+              <span class="mine">내가 고른 답 ⑤ 팀 정렬</span>
+            </div>
+            <div class="solgrid">
+              <div>
+                <p class="solp"><b>삽입 정렬</b>은 평균과 최악이 모두 <b>O(n²)</b>이다. 최선(이미 정렬된 입력)에서만 O(n)이 되는데, 이 최선값을 평균으로 착각하기 쉽다.</p>
+                <ul class="solwhy">
+                  <li>① 병합 정렬 — 입력과 무관하게 항상 n log n. 분할이 균등해서다.</li>
+                  <li>② 퀵 정렬 — 평균은 n log n. <b>최악만</b> n²이라 이 문제의 답이 아니다.</li>
+                  <li>③ 힙 정렬 — 항상 n log n. 불안정하지만 복잡도는 안정적이다.</li>
+                  <li>⑤ 팀 정렬 — 삽입 정렬을 <b>안에서 쓸 뿐</b> 병합과 결합해 평균 n log n이다.</li>
+                </ul>
+                <div class="miss"><b>자주 걸리는 함정</b> · ⑤를 고른 사람 대부분은 “팀 정렬 안에 삽입 정렬이 있으니 같은 복잡도”라고 본다. 실제로는 짧은 구간에만 삽입 정렬을 쓰고 전체는 병합으로 합친다.</div>
+              </div>
+              <div class="quote">
+                <p class="lab">정리본 §2.3</p>
+                <p>병합 정렬 · 힙 정렬 · 팀 정렬은 이 하한을 달성하는 점근적으로 최적인 알고리즘이다. <mark>삽입 정렬은 평균 O(n²)</mark>이지만, 거의 정렬된 입력에서는 O(n)에 가깝게 동작해 팀 정렬의 내부 루틴으로 쓰인다.</p>
+                <a href="#summary">정리본에서 이 문단 열기
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <div class="qfoot">
+            <button type="button" class="btn solid" style="height:46px;padding:0 28px;font-size:14.5px;">다음 문제</button>
+            <button type="button" class="btn">다시 보기함에 넣기</button>
+            <span class="qnote">집계는 홈에서</span>
+          </div>
+        </div></div>
+      </div>
+    </div></div>
+    <div class="cap"><span>연습 · 답 확인 · 틀린 경우</span><span>풀이와 오답 설명은 실제 내용</span></div>
+  </section>
+
+  <!-- ================================================== -->
+  <div class="grp"><h2>실전 모드</h2><p>타이머를 켜고 전부 푼 뒤 제출한다. 푸는 동안 정답은 볼 수 없고, 끝나야 성적표가 나온다.</p></div>
+
+  <!-- ============ 7. 실전 · 풀이 ============ -->
+  <section class="scr" id="exam">
+    <div class="shead"><span class="step-n">화면 7</span><h3>실전 · 풀이</h3></div>
+    <p class="sdesc">가운데 문제는 연습과 똑같은 조판이다. 다른 건 <b>오른쪽 OMR 답안지</b> — 17문항의 마킹 상태가 한눈에 보이고, 아무 문항이나 눌러 건너뛸 수 있다. 실제 시험지에서 답안지를 곁눈질하는 동작을 그대로 옮겼다. <b>답 확인 버튼은 없다.</b> 제출하기 전에는 정답을 볼 수 없는 게 이 모드의 전부다.</p>
+    <div class="frame"><div class="fb" style="height:700px;">
+      <div class="pg">
+        <div class="bar">
+          <div class="bl">
+            <span class="wm">단권화</span><i class="vr"></i>
+            <span class="crumb">실전 · §2 정렬 알고리즘</span>
+          </div>
+          <div class="br">
+            <span class="timer">14 : 06</span>
+            <span class="count">7 / 17</span>
+            <button type="button" class="btn ico js-skin" aria-label="라이트 다크 전환">
+              <svg class="i-sun" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
+              <svg class="i-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"></path></svg>
+            </button>
+            <button type="button" class="btn sm">일시정지</button>
+          </div>
+        </div>
+        <div class="ex">
+          <div class="exq"><div class="qcol" style="max-width:600px;">
+            <div class="qmeta">
+              <span class="qtopic">분할 정복 정렬</span>
+            </div>
+            <div class="qq">
+              <span class="qno">7.</span>
+              <span class="qstem">이미 오름차순으로 정렬된 배열에 퀵 정렬을 적용하되 <b>항상 첫 원소를 피벗</b>으로 고른다면, 시간복잡도는? <span class="qpt">[4점]</span></span>
+            </div>
+            <div class="opts">
+              <div class="opt"><span class="onum">①</span><span class="otxt">O(n)</span></div>
+              <div class="opt"><span class="onum">②</span><span class="otxt">O(n log n)</span></div>
+              <div class="opt sel"><span class="onum">③</span><span class="otxt">O(n²)</span></div>
+              <div class="opt"><span class="onum">④</span><span class="otxt">O(n² log n)</span></div>
+              <div class="opt"><span class="onum">⑤</span><span class="otxt">O(2ⁿ)</span></div>
+            </div>
+            <div class="qfoot">
+              <button type="button" class="btn">← 이전</button>
+              <button type="button" class="btn solid">다음 →</button>
+              <button type="button" class="link">제출하기</button>
+              <span class="qnote">남은 10문제</span>
+            </div>
+          </div></div>
+
+          <aside class="omr">
+            <div class="omrhd"><p class="lab">답안지</p><em>6 / 17</em></div>
+            <div class="omrtbl">
+              <div class="omrrow"><em>1</em><i></i><i></i><i class="on"></i><i></i><i></i></div>
+              <div class="omrrow"><em>2</em><i class="on"></i><i></i><i></i><i></i><i></i></div>
+              <div class="omrrow"><em>3</em><i></i><i></i><i></i><i class="on"></i><i></i></div>
+              <div class="omrrow"><em>4</em><i></i><i class="on"></i><i></i><i></i><i></i></div>
+              <div class="omrrow"><em>5</em><i></i><i></i><i></i><i></i><i class="on"></i></div>
+              <div class="omrrow"><em>6</em><i></i><i></i><i></i><i></i><i></i></div>
+              <div class="omrrow cur"><em>7</em><i></i><i></i><i class="on"></i><i></i><i></i></div>
+              <div class="omrrow"><em>8</em><i></i><i></i><i></i><i></i><i></i></div>
+              <div class="omrrow"><em>9</em><i></i><i></i><i></i><i></i><i></i></div>
+              <div class="omrrow"><em>10</em><i></i><i></i><i></i><i></i><i></i></div>
+              <div class="omrrow"><em>11</em><i></i><i></i><i></i><i></i><i></i></div>
+              <div class="omrrow"><em>12</em><i></i><i></i><i></i><i></i><i></i></div>
+              <div class="omrrow"><em>13</em><i></i><i></i><i></i><i></i><i></i></div>
+              <div class="omrrow"><em>14</em><i></i><i></i><i></i><i></i><i></i></div>
+              <div class="omrrow"><em>15</em><i></i><i></i><i></i><i></i><i></i></div>
+              <div class="omrrow"><em>16</em><i></i><i></i><i></i><i></i><i></i></div>
+              <div class="omrrow"><em>17</em><i></i><i></i><i></i><i></i><i></i></div>
+            </div>
+            <p class="omrfoot"><b>6번이 비어 있다.</b> 제출 전에 한 번 더 알려준다.</p>
+          </aside>
+        </div>
+      </div>
+    </div></div>
+    <div class="cap"><span>실전 · 7번 문항 · 답안지 6개 마킹</span><span>정답은 ③ — 피벗이 최악이 된다</span></div>
+  </section>
+
+  <!-- ============ 8. 실전 · 채점 결과 ============ -->
+  <section class="scr" id="result">
+    <div class="shead"><span class="step-n">화면 8</span><h3>실전 · 채점 결과</h3></div>
+    <p class="sdesc">제출하면 나오는 성적표. 가운데 <b>17칸 채점표</b>는 실제 시험지 채점란을 그대로 옮긴 것이라 어디서 무너졌는지가 배치로 읽힌다 — 앞은 맞고 뒤가 무너졌는지, 특정 구간만 틀렸는지. 오른쪽 진단은 <b>이 회차만</b>의 이야기고, 누적 취약점은 홈으로 흘러간다.</p>
+    <div class="frame"><div class="fb" style="height:830px;">
+      <div class="pg">
+        <div class="bar">
+          <div class="bl"><span class="wm">단권화</span><i class="vr"></i><span class="crumb">실전 결과 · §2 정렬 알고리즘</span></div>
+          <div class="br">
+            <button type="button" class="btn ico js-skin" aria-label="라이트 다크 전환">
+              <svg class="i-sun" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
+              <svg class="i-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"></path></svg>
+            </button>
+            <button type="button" class="btn">홈으로</button>
+          </div>
+        </div>
+        <div class="rs">
+          <div class="rstop">
+            <div>
+              <div class="score">
+                <b>11<span> / 17</span></b>
+                <span>65%</span>
+                <em>18분 42초 · 문항당 66초</em>
+              </div>
+              <p class="scsub">지난 회차보다 2문제 올랐다. 목표 정답률 80%까지 세 문제 남았다.</p>
+              <div class="sheet">
+                <div class="cell o"><em>1</em><b>○</b></div>
+                <div class="cell o"><em>2</em><b>○</b></div>
+                <div class="cell x"><em>3</em><b>✗</b></div>
+                <div class="cell o"><em>4</em><b>○</b></div>
+                <div class="cell o"><em>5</em><b>○</b></div>
+                <div class="cell x"><em>6</em><b>✗</b></div>
+                <div class="cell o"><em>7</em><b>○</b></div>
+                <div class="cell o"><em>8</em><b>○</b></div>
+                <div class="cell x"><em>9</em><b>✗</b></div>
+                <div class="cell o"><em>10</em><b>○</b></div>
+                <div class="cell x"><em>11</em><b>✗</b></div>
+                <div class="cell o"><em>12</em><b>○</b></div>
+                <div class="cell o"><em>13</em><b>○</b></div>
+                <div class="cell x"><em>14</em><b>✗</b></div>
+                <div class="cell o"><em>15</em><b>○</b></div>
+                <div class="cell x"><em>16</em><b>✗</b></div>
+                <div class="cell o"><em>17</em><b>○</b></div>
+              </div>
+            </div>
+            <div class="rsside">
+              <p class="lab">이번 회차 진단</p>
+              <p class="rsp">틀린 6문제 중 <b>4문제가 평균·최악 구분</b>이다. 3 · 6 · 11 · 14번이 전부 같은 함정에 걸렸다.</p>
+              <p class="rsp">나머지 둘(9 · 16번)은 <b>안정성</b> 문제다. 힙 정렬이 불안정하다는 걸 두 번 다 놓쳤다.</p>
+              <p class="rsp">시간은 넉넉했다 — 문항당 66초로 기준(60초)보다 조금 길지만 마지막까지 속도가 안 떨어졌다.</p>
+            </div>
+          </div>
+
+          <div class="rsbot">
+            <div>
+              <p class="lab">이번 회차 하위 단원별</p>
+              <div class="wrow bad">
+                <div>
+                  <div class="wnm"><b>비교 기반 정렬의 하한</b><em>§2.3 · 6문제</em></div>
+                  <div class="wtr"><i style="width:33%"></i></div>
+                </div>
+                <span class="wnum">33%</span>
+              </div>
+              <div class="wrow bad">
+                <div>
+                  <div class="wnm"><b>분할 정복 정렬</b><em>§2.2 · 5문제</em></div>
+                  <div class="wtr"><i style="width:60%"></i></div>
+                </div>
+                <span class="wnum">60%</span>
+              </div>
+              <div class="wrow">
+                <div>
+                  <div class="wnm"><b>단순 정렬</b><em>§2.1 · 4문제</em></div>
+                  <div class="wtr"><i style="width:100%"></i></div>
+                </div>
+                <span class="wnum">100%</span>
+              </div>
+              <div class="wrow">
+                <div>
+                  <div class="wnm"><b>비교하지 않는 정렬</b><em>§2.4 · 2문제</em></div>
+                  <div class="wtr"><i style="width:100%"></i></div>
+                </div>
+                <span class="wnum">100%</span>
+              </div>
+              <div class="rsacts">
+                <button type="button" class="btn solid">틀린 6문제 풀이 보기</button>
+                <button type="button" class="btn">정리본 §2.3 다시 읽기</button>
+                <button type="button" class="btn">한 번 더</button>
+              </div>
+            </div>
+            <div class="rsside">
+              <p class="lab">홈으로 넘어가는 것</p>
+              <p class="rsp">이 결과는 홈의 <b>약한 단원</b>에 합산된다. 정렬 알고리즘의 누적 정답률이 41%에서 <b>46%</b>로 올라간다.</p>
+              <div class="wpat">틀린 6문제는 <b>다시 보기함</b>에 자동으로 들어간다. 다음에 “전에 틀린 것만” 범위를 고르면 이것들이 먼저 나온다.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div></div>
+    <div class="cap"><span>실전 · 채점 결과</span><span>점수와 진단은 구조를 보여주는 예시 값</span></div>
+  </section>
+
+  <!-- ============ NEXT ============ -->
+  <section class="next">
+    <p class="eyebrow">다음 단계</p>
+    <h2>여기서 뭘 하면 되나</h2>
+    <div class="steps">
+      <div class="step done"><span class="n">MVP 1 · 끝</span><b>화면 방향</b><p>A 구조 + C식 답 확인으로 확정.</p></div>
+      <div class="step on"><span class="n">MVP 2 · 지금</span><b>여덟 화면</b><p>두 모드 · 라이트와 다크까지.</p></div>
+      <div class="step"><span class="n">MVP 3</span><b>진짜 동작</b><p>텍스트 붙여넣기 → 정리본 → 출제 → 채점.</p></div>
+      <div class="step"><span class="n">MVP 4</span><b>저장과 공유</b><p>과목과 자료가 남고, 링크로 열린다.</p></div>
+      <div class="step"><span class="n">MVP 5</span><b>약한 단원 · PDF</b><p>홈의 집계와 정리본 PDF 내려받기.</p></div>
+      <div class="step"><span class="n">MVP 6</span><b>PDF · 사진 올리기</b><p>강의자료와 필기 사진을 그대로.</p></div>
+    </div>
+
+    <div class="ask">
+      <p><b>다크 모드부터 봐줘.</b> 색을 뒤집지 않고 다시 골랐다 — 따뜻한 먹색 바탕에 크림색 글자, 빨간펜은 밝은 쪽으로 옮겼다. 정리본과 답 확인 화면에서 오래 읽었을 때 눈이 편한지가 관건이다.</p>
+      <p><b>실전 모드의 OMR 답안지</b>가 과할 수도 있다. 실제 시험 감각을 살리려고 넣었는데, 그냥 “7 / 17 · 미표기 1개” 한 줄로 줄여도 된다. 어느 쪽이 나은지 봐줘.</p>
+      <p><b>안 물어보고 정한 것.</b> 실전 모드 타이머는 <b>문항당 60초 기준</b>으로 잡고 카운트다운이 아니라 경과 시간을 보여준다. 압박을 주되 시간이 끝나도 강제 종료는 안 하는 쪽이다.</p>
+    </div>
+
+    <p class="caveat">과목명 · 점수 · 정답률은 구조를 보여주려고 넣은 예시 값이다. 정리본 본문, 시간복잡도 표, 문제와 풀이는 전부 실제 자료구조 내용이고 검산했다 — 7번 문항의 답은 ③ O(n²)으로, 이미 정렬된 배열에서 첫 원소를 피벗으로 잡으면 분할이 한쪽으로 완전히 치우친다.</p>
+  </section>
+
+</div>
+</main>
+
+<script>
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest ? e.target.closest('.js-skin') : null;
+    if (!b) return;
+    var dark = document.body.getAttribute('data-mock') === 'dark';
+    document.body.setAttribute('data-mock', dark ? 'light' : 'dark');
+  });
+</script>
+</body>
+</html>
