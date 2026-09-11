@@ -632,7 +632,7 @@
       "단원 제목: " + sec.title,
       "단원 내용:",
       "<<<",
-      sec.body,
+      String(sec.body || "").slice(0, Math.max(600, (S.sample && S.sample.maxChars) || 7000)),
       "",
       "시험에 나오는 지점: " + (sec.keyPoints || []).join(" / "),
       ">>>"
@@ -743,6 +743,113 @@
                 mediaTypes: ["image/jpeg", "image/png", "image/webp", "image/gif"] }
     });
   };
+  apiSample.maxChars = 7000;
+  apiSample.label = "내 API 키";
+
+  /* ============ 무료 · 브라우저 안에서 모델을 직접 돌리기 ============
+     키도 서버도 없다. 모델 파일을 한 번 내려받아 브라우저에 캐시하고
+     WebGPU로 돌린다. 자료가 기기 밖으로 나가지 않는다.
+     문맥 창이 4096토큰뿐이라 한 번에 넣는 자료를 크게 줄여야 한다. */
+  var WEBLLM_URL = "https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.79/+esm";
+  var LOCAL_MODELS = [
+    { id: "Qwen2.5-1.5B-Instruct-q4f16_1-MLC", label: "가벼움", size: "약 1.6GB",
+      note: "빠르지만 정리가 거칠다. 사양이 낮을 때." },
+    { id: "Qwen2.5-3B-Instruct-q4f16_1-MLC", label: "권장", size: "약 2.5GB",
+      note: "속도와 품질이 무난하다." },
+    { id: "Qwen2.5-7B-Instruct-q4f16_1-MLC", label: "정확함", size: "약 5.1GB",
+      note: "가장 낫지만 느리다. 그래픽 메모리 8GB 이상." }
+  ];
+  var llmEngine = null, llmModelLoaded = "";
+
+  function aiMode() {
+    try { return localStorage.getItem("dangwonhwa.aimode") || ""; } catch (e) { return ""; }
+  }
+  function setAiMode(m) {
+    try { m ? localStorage.setItem("dangwonhwa.aimode", m)
+            : localStorage.removeItem("dangwonhwa.aimode"); } catch (e) {}
+  }
+  function localModelId() {
+    try { return localStorage.getItem("dangwonhwa.localmodel") || LOCAL_MODELS[1].id; }
+    catch (e) { return LOCAL_MODELS[1].id; }
+  }
+  function setLocalModel(id) {
+    try { localStorage.setItem("dangwonhwa.localmodel", id); } catch (e) {}
+    if (llmModelLoaded && llmModelLoaded !== id) { llmEngine = null; llmModelLoaded = ""; }
+  }
+  function localModelInfo() {
+    var id = localModelId();
+    for (var i = 0; i < LOCAL_MODELS.length; i++) if (LOCAL_MODELS[i].id === id) return LOCAL_MODELS[i];
+    return LOCAL_MODELS[1];
+  }
+
+  function loadEngine(onProgress) {
+    var id = localModelId();
+    if (llmEngine && llmModelLoaded === id) return Promise.resolve(llmEngine);
+    if (!navigator.gpu) return Promise.reject({ code: "no_webgpu", message: "navigator.gpu가 없다" });
+    return import(WEBLLM_URL).catch(function (e) {
+      throw { code: "local_error", message: "web-llm을 불러오지 못했다: " + ((e && e.message) || e) };
+    }).then(function (webllm) {
+      return webllm.CreateMLCEngine(id, { initProgressCallback: onProgress });
+    }).then(function (eng) {
+      llmEngine = eng; llmModelLoaded = id; return eng;
+    });
+  }
+
+  function webllmSample(input, opts) {
+    opts = opts || {};
+    if (opts.images && opts.images.length) {
+      return Promise.reject({ code: "images_unavailable",
+                              message: "브라우저 모델은 이미지를 읽지 못한다" });
+    }
+    var text = typeof input === "string" ? input
+      : input.map(function (m) { return m.content; }).join("\n\n");
+    return loadEngine(function (r) {
+      if (S.busy) {
+        S.busy.title = "모델 준비 중";
+        S.busy.desc = (r && r.text) ? String(r.text) : "내려받는 중";
+        S.busy.note = "처음 한 번만 · 이후에는 바로 시작된다";
+        render();
+      }
+    }).then(function (eng) {
+      if (opts.signal) {
+        opts.signal.addEventListener("abort", function () {
+          try { eng.interruptGenerate(); } catch (e) {}
+        }, { once: true });
+      }
+      if (S.busy) {
+        S.busy.title = "자료를 읽고 있다";
+        S.busy.desc = localModelInfo().label + " 모델이 이 기기에서 돌고 있다.";
+        S.busy.note = "사양에 따라 1~5분";
+        render();
+      }
+      return eng.chat.completions.create({
+        messages: [{ role: "user", content: text }],
+        temperature: 0.3,
+        max_tokens: 1600
+      });
+    }).then(function (res) {
+      if (opts.signal && opts.signal.aborted) throw { code: "cancelled", message: "중단됨" };
+      var ch = (res && res.choices && res.choices[0]) || null;
+      var out = ch && ch.message ? String(ch.message.content || "") : "";
+      if (!out.trim()) throw { code: "empty_completion", message: "답이 비었다" };
+      return { text: out, truncated: ch && ch.finish_reason === "length", modelTierApplied: "quick" };
+    }, function (e) {
+      if (e && e.code) throw e;
+      var msg = (e && e.message) ? String(e.message) : String(e);
+      if (/webgpu|adapter|navigator\.gpu/i.test(msg)) throw { code: "no_webgpu", message: msg };
+      throw { code: "local_error", message: msg };
+    });
+  }
+  webllmSample.json = function (input, opts) {
+    return webllmSample(input, opts).then(function (r) {
+      var v = looseJson(r.text);
+      if (v == null) throw { code: "invalid_json", message: "JSON을 찾지 못했다", text: r.text };
+      return v;
+    });
+  };
+  webllmSample.limits = function () { return Promise.resolve({ maxPromptBytes: 8000 }); };
+  webllmSample.maxChars = 1800;
+  webllmSample.label = "무료 브라우저 모델";
 
   /* ============================== 부팅 ============================== */
   render();
@@ -757,7 +864,11 @@
       S.store = makeStore(r[0]);
       S.sample = r[1];
       S.standalone = !window.claude;
-      if (!S.sample && S.standalone && getKey()) S.sample = apiSample;
+      if (!S.sample && S.standalone) {
+        var mode = aiMode();
+        if (mode === "local") S.sample = webllmSample;
+        else if (getKey()) S.sample = apiSample;
+      }
       if (S.sample && S.sample.limits) {
         S.sample.limits().then(function (l) {
           S.imgLimits = (l && l.images) || null;
@@ -874,7 +985,7 @@
     var right =
       (S.standalone
         ? '<button type="button" class="btn sm" data-a="apikey">' +
-          (getKey() ? "AI 연결됨" : "AI 연결 필요") + "</button>"
+          esc(S.sample ? (S.sample.label || "AI 연결됨") : "AI 연결 필요") + "</button>"
         : '<button type="button" class="btn sm" data-a="name">' + esc(S.myName || "이름 설정") + "</button>") +
       '<button type="button" class="btn sm" data-a="diag">' +
       (S.sample ? "상태" : "상태 · 문제 있음") + "</button>" +
@@ -975,6 +1086,7 @@
 
   /* ============================== 자료 추가 ============================== */
   function kindIcon(k) { return k === "pdf" ? I.pdf : k === "image" ? I.img : I.text; }
+  function textCap() { return (S.sample && S.sample.maxChars) || 7000; }
 
   function viewAdd() {
     var s = S.subject;
@@ -1000,13 +1112,16 @@
 
     if (d.kind === "text") {
       var n = d.text.length;
-      var over = n > 7000;
+      var cap = textCap();
+      var over = n > cap;
       ready = n >= 80 && !over;
       panel = '<div class="field"><textarea id="mat" data-focus placeholder="여기에 자료를 붙여넣어라. 강의 필기, 교재 발췌, 정리해둔 메모 — 형식은 상관없다.">' +
         esc(d.text) + "</textarea></div>";
       hint = n < 80 ? "80자 이상 넣어야 시작할 수 있다."
-        : over ? n.toLocaleString() + "자 — 7,000자를 넘었다. 길면 정리 결과가 잘린다. 반으로 나눠 두 번 넣어줘."
-          : n.toLocaleString() + "자 · 30초에서 1분쯤 걸린다";
+        : over ? n.toLocaleString() + "자 — " + cap.toLocaleString() +
+            "자를 넘었다. 나눠서 여러 번 넣어줘."
+          : n.toLocaleString() + " / " + cap.toLocaleString() + "자 · " +
+            (S.sample === webllmSample ? "1~5분 걸린다" : "30초에서 1분쯤 걸린다");
       cta = "정리 시작";
     } else if (d.kind === "pdf") {
       var f = d.files[0];
@@ -1051,8 +1166,8 @@
     var warn = S.sample ? "" :
       (S.standalone
         ? '<div class="note"><b>AI 연결이 필요하다.</b> 이 페이지는 Claude 밖에서 열려서, ' +
-          "자료를 정리하려면 본인 API 키를 넣어야 한다. " +
-          '<button type="button" class="link" data-a="apikey" style="min-height:auto;padding:0">키 넣기</button></div>'
+          "자료를 정리하려면 무료 브라우저 모델을 받거나 API 키를 넣어야 한다. " +
+          '<button type="button" class="link" data-a="apikey" style="min-height:auto;padding:0">고르기</button></div>'
         : '<div class="note"><b>지금은 자료를 정리할 수 없다.</b> Claude 호출이 막혀 있다 — ' +
           "허용을 거절했다면 새로고침하고 ‘허용’을 눌러줘. " +
           '<button type="button" class="link" data-a="diag" style="min-height:auto;padding:0">상태 보기</button></div>');
@@ -1380,22 +1495,66 @@
     }
     if (m.type === "apikey") {
       var has = !!getKey();
-      return '<div class="modal"><div class="sheetbox"><h2>AI 연결</h2>' +
-        "<p>이 페이지는 Claude 밖에서 열렸다. 자료 정리와 출제를 돌리려면 " +
-        "<b>본인 Anthropic API 키</b>가 필요하다.</p>" +
-        '<div class="field"><label for="ak">API 키</label>' +
-        '<input type="password" id="ak" data-focus placeholder="sk-ant-..." autocomplete="off" spellcheck="false"></div>' +
-        '<div class="note calm"><b>키는 이 브라우저에만 저장된다.</b> ' +
-        "api.anthropic.com 외에는 어디로도 보내지 않고, 이 앱을 만든 사람도 볼 수 없다. " +
-        "다만 브라우저 저장소에 평문으로 들어가니 <b>공용 컴퓨터에서는 넣지 마라.</b> " +
-        "사용료는 키 주인에게 청구된다.</div>" +
-        "<p style='font-size:12.5px;color:var(--ink3);margin:14px 0 0;line-height:1.7'>" +
-        "키는 console.anthropic.com 에서 만든다. " +
-        (has ? "지금 저장된 키가 하나 있다." : "") + "</p>" +
-        '<div class="mrowb">' +
-        (has ? '<button type="button" class="btn danger" data-a="clearkey">키 지우기</button>' : "") +
-        '<button type="button" class="btn" data-a="closemodal">취소</button>' +
-        '<button type="button" class="btn solid" data-a="savekey">저장</button></div></div></div>';
+      var mode = m.pick || aiMode() || "local";
+      var gpu = !!navigator.gpu;
+      var mi = localModelInfo();
+
+      var pickRow =
+        '<div class="mdg" style="grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:22px">' +
+        '<button type="button" class="mdc' + (mode === "local" ? " on" : "") +
+        '" data-a="aipick" data-m="local" style="padding:16px"' + (gpu ? "" : " disabled") + ">" +
+        '<span class="tag">무료 · 키 없음</span><h3 style="font-size:17px">이 기기에서 직접</h3>' +
+        "<p style='margin-bottom:0'>" +
+        (gpu ? "모델을 한 번 내려받아 브라우저 안에서 돌린다. 자료가 기기 밖으로 나가지 않는다."
+             : "이 브라우저는 WebGPU를 지원하지 않아 쓸 수 없다. 최신 크롬이나 엣지에서 열어줘.") +
+        "</p></button>" +
+        '<button type="button" class="mdc' + (mode === "key" ? " on" : "") +
+        '" data-a="aipick" data-m="key" style="padding:16px">' +
+        '<span class="tag">유료 · 정확함</span><h3 style="font-size:17px">Anthropic API 키</h3>' +
+        "<p style='margin-bottom:0'>Claude를 그대로 쓴다. 정리 품질이 가장 좋고 사진도 읽는다. " +
+        "사용료는 키 주인 부담.</p></button></div>";
+
+      var body;
+      if (mode === "local") {
+        body =
+          '<div class="mdset" style="border-top:0;padding-top:0"><div class="mdrow" style="border-bottom:0">' +
+          "<span>모델</span><div class='chips'>" +
+          LOCAL_MODELS.map(function (x) {
+            return '<button type="button" class="chip' + (x.id === mi.id ? " on" : "") +
+              '" data-a="localmodel" data-id="' + esc(x.id) + '">' +
+              esc(x.label) + " · " + esc(x.size) + "</button>";
+          }).join("") + "</div></div></div>" +
+          "<p style='font-size:12.5px;color:var(--ink2);margin:4px 0 16px;line-height:1.7'>" +
+          esc(mi.note) + "</p>" +
+          '<div class="note calm"><b>처음 한 번 ' + esc(mi.size) + '를 내려받는다.</b> ' +
+          "이후에는 브라우저에 저장돼 바로 시작된다. 인터넷 없이도 돌아간다.<br><br>" +
+          "<b>대신 이런 점을 감수해야 한다.</b> 정리 품질이 Claude보다 눈에 띄게 떨어지고, " +
+          "한 번에 넣을 수 있는 자료가 <b>" + webllmSample.maxChars + "자</b>로 짧다" +
+          "(Claude는 7,000자). <b>사진과 스캔 PDF는 읽지 못한다.</b> " +
+          "정리 한 번에 1~5분 걸린다.</div>" +
+          '<div class="mrowb">' +
+          '<button type="button" class="btn" data-a="closemodal">취소</button>' +
+          '<button type="button" class="btn solid" data-a="usefree">' +
+          (llmModelLoaded === mi.id ? "이걸로 쓰기" : "내려받고 시작") + "</button></div>";
+      } else {
+        body =
+          '<div class="field"><label for="ak">API 키</label>' +
+          '<input type="password" id="ak" data-focus placeholder="sk-ant-..." autocomplete="off" spellcheck="false"></div>' +
+          '<div class="note calm"><b>키는 이 브라우저에만 저장된다.</b> ' +
+          "api.anthropic.com 외에는 어디로도 보내지 않고, 이 앱을 만든 사람도 볼 수 없다. " +
+          "다만 브라우저 저장소에 평문으로 들어가니 <b>공용 컴퓨터에서는 넣지 마라.</b> " +
+          "사용료는 키 주인에게 청구된다.</div>" +
+          "<p style='font-size:12.5px;color:var(--ink3);margin:14px 0 0;line-height:1.7'>" +
+          "키는 console.anthropic.com 에서 만든다." + (has ? " 지금 저장된 키가 하나 있다." : "") + "</p>" +
+          '<div class="mrowb">' +
+          (has ? '<button type="button" class="btn danger" data-a="clearkey">키 지우기</button>' : "") +
+          '<button type="button" class="btn" data-a="closemodal">취소</button>' +
+          '<button type="button" class="btn solid" data-a="savekey">저장</button></div>';
+      }
+
+      return '<div class="modal"><div class="sheetbox" style="max-width:640px"><h2>AI 연결</h2>' +
+        "<p>이 페이지는 Claude 밖에서 열렸다. 자료 정리와 출제를 돌릴 방법을 골라라.</p>" +
+        pickRow + body + "</div></div>";
     }
     if (m.type === "name") {
       return '<div class="modal"><div class="sheetbox"><h2>이름 설정</h2>' +
@@ -1646,7 +1805,12 @@
     return [
       "실행 위치: " + (window.claude ? "Claude 안" : "Claude 밖 (웹)"),
       "AI 경로: " + (!S.sample ? "없음 — 이게 원인일 가능성이 높다"
-        : S.sample === apiSample ? "내 API 키 (" + API_MODEL + ")" : "Claude 계정"),
+        : S.sample.label ? S.sample.label + (S.sample === apiSample ? " (" + API_MODEL + ")"
+            : S.sample === webllmSample ? " (" + localModelId() + ")" : "")
+          : "Claude 계정"),
+      "입력 한도: " + textCap().toLocaleString() + "자",
+      "WebGPU: " + (navigator.gpu ? "있음" : "없음"),
+      "모델 받아둠: " + (llmModelLoaded || "없음"),
       "API 키 저장됨: " + (getKey() ? "예" : "아니오"),
       "저장소: " + (S.dbOK ? "서버 (공유됨)" : "이 브라우저에만"),
       "이미지 전송: " + (S.imgLimits ? "가능 (한 번에 " + S.imgLimits.maxCount + "장)" : "불가"),
@@ -1706,6 +1870,8 @@
     image_rejected: "사진이 거절됐다. 장수가 너무 많거나, 용량이 크거나, 지원하지 않는 형식이다.",
     upstream_error: "연결이 끊기거나 일시적인 오류가 났다. 다시 눌러줘.",
     no_questions: "Claude가 답은 했는데 문제 형식이 맞지 않았다. 이 단원 내용이 짧으면 잘 생긴다 — 문제 수를 줄이거나 자료를 더 넣어줘.",
+    no_webgpu: "이 브라우저에서 WebGPU를 쓸 수 없어 무료 모델을 돌릴 수 없다. 최신 크롬이나 엣지(데스크톱)에서 열거나, API 키 쪽을 써줘.",
+    local_error: "브라우저 안에서 모델을 돌리다 막혔다. 그래픽 메모리가 모자랄 수 있으니 더 작은 모델로 바꿔보고, 안 되면 API 키 쪽을 써줘.",
     bad_key: "API 키가 거부됐다. 키가 맞는지, 앞에 sk-ant- 로 시작하는지, 잔액이 남았는지 확인해줘.",
     no_network: "api.anthropic.com에 닿지 못했다. 인터넷 연결을 확인해줘. 회사망이라면 막혀 있을 수 있다.",
     no_sample: "자료 정리와 출제를 돌릴 수 없다. Claude 안에서 열었다면 새로고침하고 사용을 허용해줘. 밖에서 열었다면 API 키를 넣으면 된다.",
@@ -1775,7 +1941,7 @@
       meta.note = file.name + " · " + r.total + "쪽";
       if (t.replace(/\s/g, "").length >= 300) {
         meta.chars = t.length;
-        if (t.length > 7000) t = t.slice(0, 7000);
+        if (t.length > textCap()) t = t.slice(0, textCap());
         setBusy("자료를 읽고 있다",
           r.pages + "쪽에서 글자를 뽑았다. 단원으로 나누는 중이다.", "30초에서 1분", ctl);
         return askSections(summaryPrompt(S.subject.name, t, "pdf"), null, ctl);
@@ -1947,7 +2113,8 @@
       var prev = S.draft.text.length;
       S.draft.text = e.target.value;
       // 버튼 활성 경계를 넘을 때만 다시 그린다 (타이핑 중 포커스 유지)
-      var boundary = function (x) { return x < 80 ? 0 : x > 7000 ? 2 : 1; };
+      var cap0 = textCap();
+      var boundary = function (x) { return x < 80 ? 0 : x > cap0 ? 2 : 1; };
       if (boundary(prev) !== boundary(n)) {
         var pos = e.target.selectionStart;
         render();
@@ -1955,7 +2122,7 @@
         if (t) { t.focus(); try { t.setSelectionRange(pos, pos); } catch (err) {} }
       } else {
         var hint = app.querySelector(".erow .hint");
-        if (hint) hint.textContent = n.toLocaleString() + "자 · 30초에서 1분쯤 걸린다";
+        if (hint) hint.textContent = n.toLocaleString() + " / " + cap0.toLocaleString() + "자";
       }
     }
     if (e.target && e.target.id === "short" && S.ses) {
@@ -2021,11 +2188,36 @@
     }
 
     if (a === "apikey") { S.modal = { type: "apikey" }; render(); return; }
+    if (a === "aipick") { S.modal = { type: "apikey", pick: el.getAttribute("data-m") }; render(); return; }
+    if (a === "localmodel") {
+      setLocalModel(el.getAttribute("data-id"));
+      S.modal = { type: "apikey", pick: "local" }; render(); return;
+    }
+    if (a === "usefree") {
+      setAiMode("local");
+      S.sample = webllmSample;
+      S.imgLimits = null;
+      S.modal = null;
+      render();
+      // 지금 바로 내려받아 둔다 — 자료를 넣을 때 기다리지 않도록
+      S.busy = { title: "모델 준비 중", desc: localModelInfo().size + " 내려받는 중",
+                 note: "처음 한 번만 · 중단해도 받은 만큼은 남는다",
+                 ctl: new AbortController(), stream: "" };
+      render();
+      loadEngine(function (r) {
+        if (S.busy) { S.busy.desc = (r && r.text) ? String(r.text) : "내려받는 중"; render(); }
+      }).then(function () {
+        S.busy = null;
+        alertBox("준비됐다", localModelInfo().label + " 모델이 이 브라우저에 저장됐다. " +
+          "이제 자료를 넣으면 인터넷 없이도 정리된다. 한 번에 " + webllmSample.maxChars + "자까지.");
+      }).catch(function (e) { failBusy(e, "모델을 준비하지 못했다"); });
+      return;
+    }
     if (a === "savekey") {
       var akEl = document.getElementById("ak");
       var k = akEl ? akEl.value.trim() : "";
       if (!k) { if (akEl) akEl.focus(); return; }
-      setKey(k);
+      setKey(k); setAiMode("key");
       S.sample = apiSample;
       S.modal = null;
       apiSample.limits().then(function (l) { S.imgLimits = (l && l.images) || null; render(); });
@@ -2033,7 +2225,7 @@
     }
     if (a === "clearkey") {
       setKey("");
-      if (S.sample === apiSample) { S.sample = null; S.imgLimits = null; }
+      if (S.sample === apiSample) { S.sample = null; S.imgLimits = null; setAiMode(""); }
       S.modal = null; render(); return;
     }
     if (a === "share") { S.modal = { type: "share" }; render(); return; }
