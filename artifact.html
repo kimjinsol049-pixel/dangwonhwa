@@ -616,9 +616,19 @@
       "규칙:",
       "- 정리본에 있는 내용만으로 답이 결정되어야 한다. 바깥 지식이 필요한 문제를 내지 않는다.",
       "- 유형을 섞는다. 객관식(mc) 약 60%, OX(ox) 약 20%, 단답(short) 약 20%.",
-      "- 객관식은 보기 5개. answer는 정답 보기의 0부터 시작하는 번호(숫자).",
-      "- OX는 answer가 true 또는 false(불리언).",
-      "- 단답은 answer가 정답 문자열이고, acceptable에 같은 뜻으로 인정할 다른 표기를 최대 3개 넣는다.",
+      "",
+      "유형별 지문 형태를 반드시 지켜라. 이걸 어기면 풀 수 없는 문제가 된다.",
+      "",
+      "- 객관식(mc): 무엇을 고르라는 것인지 분명한 질문. 보기 5개는 서로 겹치지 않아야 한다.",
+      "  answer는 정답 보기의 0부터 시작하는 번호(숫자).",
+      "- OX(ox): 지문이 반드시 **참인지 거짓인지 가릴 수 있는 서술문**이어야 한다.",
+      "  물음표로 끝나는 질문, '~하는 것은?', '~은 무엇인가?', '옳은 것은?' 같은 형태를",
+      "  OX로 내면 절대 안 된다. 그건 객관식이지 OX가 아니다.",
+      "  나쁜 예: \"고체, 액체, 기체의 특징을 설명하는 문장은?\"  ← O/X로 답할 수 없다",
+      "  좋은 예: \"플라즈마는 원자가 이온과 전자로 분리된 상태이다.\"  ← 참·거짓을 가릴 수 있다",
+      "  answer는 그 서술문이 참이면 true, 거짓이면 false(불리언).",
+      "- 단답(short): 한 단어나 짧은 구로 답할 수 있어야 한다. 답이 한 문장이면 단답으로 내지 마라.",
+      "  answer는 정답 문자열이고, acceptable에 같은 뜻으로 인정할 다른 표기를 최대 3개 넣는다.",
       "- explanation은 왜 그것이 답인지 2~3문장.",
       "- why는 객관식에서만. 각 오답 보기가 왜 아닌지 한 줄씩, 보기 기호를 앞에 붙여서.",
       "- evidence는 아래 단원 내용에서 근거가 되는 문장을 그대로 옮긴 것.",
@@ -1498,18 +1508,24 @@
     var right = '<span class="count">' + (i + 1) + " / " + s.qs.length + "</span>" +
       '<button type="button" class="btn" data-a="subject">정리본으로</button>';
 
+    var note = s.dropped
+      ? "이상한 문제 " + s.dropped + "개는 빼뒀다"
+      : (graded ? "집계는 홈에서" : "나가도 여기까지는 남는다");
+
     var foot;
     if (!graded) {
       foot = '<button type="button" class="btn solid lg" data-a="grade"' +
         (a && a.given != null && a.given !== "" ? "" : " disabled") + ">답 확인</button>" +
         '<button type="button" class="link" data-a="skip">모르겠음, 다음</button>' +
-        '<span class="qnote">나가도 여기까지는 남는다</span>';
+        '<button type="button" class="link" data-a="dropq">이 문제 이상해</button>' +
+        '<span class="qnote">' + esc(note) + "</span>";
     } else {
       foot = '<button type="button" class="btn solid lg" data-a="next">' +
         (i + 1 < s.qs.length ? "다음 문제" : "마치기") + "</button>" +
         (q.type === "short" && !a.correct
           ? '<button type="button" class="btn" data-a="markok">이거 맞은 걸로</button>' : "") +
-        '<span class="qnote">집계는 홈에서</span>';
+        '<button type="button" class="link" data-a="dropq">이 문제 이상해</button>' +
+        '<span class="qnote">' + esc(note) + "</span>";
     }
 
     return bar(left, right) + '<div class="page"><div class="qwrap"><div class="qcol">' +
@@ -2194,6 +2210,40 @@
     });
   }
 
+  // OX인데 지문이 질문형이면 O/X로 답할 수가 없다. 그런 문제를 걸러낸다.
+  var ASKY = /(무엇인가|무엇입니까|어느 것|옳은 것|알맞은 것|적절한 것|올바른 것|고르시오|고르면|설명하는 (문장|것)|해당하는 것)/;
+  function usableQuestion(q) {
+    if (!q || typeof q.stem !== "string") return false;
+    var stem = q.stem.trim();
+    if (stem.length < 6) return false;
+
+    if (q.type === "mc") {
+      if (!Array.isArray(q.options) || q.options.length < 3) return false;
+      if (typeof q.answer !== "number" || q.answer < 0 || q.answer >= q.options.length) return false;
+      var seen = {};
+      for (var i = 0; i < q.options.length; i++) {
+        var k = String(q.options[i]).trim();
+        if (!k || seen[k]) return false;   // 빈 보기나 중복 보기
+        seen[k] = 1;
+      }
+      return true;
+    }
+    if (q.type === "ox") {
+      if (typeof q.answer !== "boolean") return false;
+      if (/[?？]\s*$/.test(stem)) return false;   // 질문으로 끝나면 OX가 아니다
+      if (ASKY.test(stem)) return false;
+      if (Array.isArray(q.options) && q.options.length > 2) return false; // 객관식을 잘못 붙인 것
+      return true;
+    }
+    if (q.type === "short") {
+      if (typeof q.answer !== "string") return false;
+      var a = q.answer.trim();
+      if (!a || a.length > 40) return false;      // 한 문장짜리 답은 단답이 아니다
+      return true;
+    }
+    return false;
+  }
+
   function runQuestions(sec, count, then) {
     if (!needSample()) return;
     var ctl = new AbortController();
@@ -2206,19 +2256,18 @@
       cache: false,
       onText: function (u) { seen = u.text; if (S.busy) { S.busy.stream = u.text; render(); } }
     }).then(function (data) {
-      var qs = ((data && data.questions) || (Array.isArray(data) ? data : [])).filter(function (q) {
-        if (!q || !q.stem) return false;
-        if (q.type === "mc") return Array.isArray(q.options) && q.options.length >= 2 &&
-          typeof q.answer === "number" && q.answer >= 0 && q.answer < q.options.length;
-        if (q.type === "ox") return typeof q.answer === "boolean";
-        if (q.type === "short") return typeof q.answer === "string" && q.answer.length > 0;
-        return false;
+      var raw = (data && data.questions) || (Array.isArray(data) ? data : []);
+      var dropped = 0;
+      var qs = raw.filter(function (q) {
+        var ok = usableQuestion(q);
+        if (!ok) dropped++;
+        return ok;
       });
       if (!qs.length) {
         throw { code: "no_questions", message: "답은 왔는데 쓸 수 있는 문제가 없다", text: seen };
       }
       S.busy = null;
-      then(qs);
+      then(qs, dropped);
     }).catch(function (e) {
       if (e && !e.text && seen) { try { e.text = seen; } catch (x) {} }
       failBusy(e, "문제를 만들지 못했다");
@@ -2226,12 +2275,12 @@
   }
 
   /* ============================== 세션 ============================== */
-  function startSession(sec, qs, mode) {
+  function startSession(sec, qs, mode, dropped) {
     S.ses = {
       mode: mode, secId: sec.id, secTitle: sec.title,
       subjectId: S.subject.id, subjectName: S.subject.name,
       qs: qs, ans: qs.map(function () { return { given: null, graded: false, correct: false }; }),
-      i: 0, startedAt: Date.now(), endedAt: 0
+      i: 0, startedAt: Date.now(), endedAt: 0, dropped: dropped || 0
     };
     S.reviewIdx = null;
     S.view = mode === "exam" ? "exam" : "practice";
@@ -2551,19 +2600,43 @@
     if (a === "count") { S.setup.count = +el.getAttribute("data-n"); render(); return; }
     if (a === "start") {
       var sec2 = S.sections[S.secIndex];
-      runQuestions(sec2, S.setup.count, function (qs) {
+      runQuestions(sec2, S.setup.count, function (qs, dropped) {
         sec2.qCount = qs.length;
         S.store.putQset(S.subject.id, sec2.id, { questions: qs, generatedAt: Date.now() })
           .catch(function () {});
         S.store.putSection(S.subject.id, sec2).catch(function () {});
-        startSession(sec2, qs, S.setup.mode);
+        startSession(sec2, qs, S.setup.mode, dropped);
       });
       return;
     }
     if (a === "again") {
       var sec3 = S.sections[S.secIndex];
-      runQuestions(sec3, S.setup.count, function (qs) { startSession(sec3, qs, S.ses.mode); });
+      var mode3 = S.ses ? S.ses.mode : S.setup.mode;
+      runQuestions(sec3, S.setup.count, function (qs, dropped) {
+        startSession(sec3, qs, mode3, dropped);
+      });
       return;
+    }
+    if (a === "dropq") {
+      if (!s) return;
+      var di = s.i;
+      if (s.ans[di] && s.ans[di].graded) {
+        for (var dk = S.progress.length - 1; dk >= 0; dk--) {
+          if (S.progress[dk].secId === s.secId) { S.progress.splice(dk, 1); break; }
+        }
+        saveProgress();
+      }
+      s.qs.splice(di, 1); s.ans.splice(di, 1);
+      s.dropped = (s.dropped || 0) + 1;
+      S.store.putQset(S.subject.id, s.secId,
+        { questions: s.qs, generatedAt: Date.now() }).catch(function () {});
+      if (!s.qs.length) {
+        S.ses = null; S.view = "subject";
+        alertBox("문제가 다 빠졌다", "이 단원 문제를 전부 뺐다. ‘풀어보기’를 다시 누르면 새로 만든다.");
+        return;
+      }
+      if (s.i >= s.qs.length) s.i = s.qs.length - 1;
+      render(); return;
     }
 
     if (!s) return;
